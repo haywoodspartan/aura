@@ -515,6 +515,16 @@ namespace Aura.Mabi.Const
 		WirePull = 54201,
 		PuppetsSnare = 54202,
 
+		// Dual Gun
+		DualGunMastery = 54302,
+		FlashLauncher = 54303,
+		GrappleShot = 54304,
+		BulletSlide = 54305,
+		ShootingRush = 54306,
+		BulletStorm = 54307,
+		Reload = 54401,
+		WayOfTheGun = 54402,
+
 		// Life Part 2
 		SheepShearing = 55001,
 		Mining = 55002,

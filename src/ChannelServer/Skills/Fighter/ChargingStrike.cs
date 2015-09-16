@@ -58,6 +58,7 @@ namespace Aura.Channel.Skills.Fighter
 		/// <returns></returns>
 		public bool Prepare(Creature creature, Skill skill, Packet packet)
 		{
+			creature.Unlock(Locks.All, true);
 			Send.SkillPrepare(creature, skill.Info.Id, skill.GetCastTime());
 
 			return true;
@@ -72,6 +73,8 @@ namespace Aura.Channel.Skills.Fighter
 		/// <returns></returns>
 		public bool Ready(Creature creature, Skill skill, Packet packet)
 		{
+			creature.Unlock(Locks.All, true);
+
 			skill.Stacks = 1;
 			Send.SkillReady(creature, skill.Info.Id);
 
@@ -86,6 +89,8 @@ namespace Aura.Channel.Skills.Fighter
 		/// <param name="targetEntityId"></param>
 		public void Use(Creature attacker, Skill skill, Packet packet)
 		{
+			attacker.Unlock(Locks.All, true);
+
 			// Get Target
 			var targetEntityId = packet.GetLong();
 			var target = attacker.Region.GetCreature(targetEntityId);
@@ -192,6 +197,7 @@ namespace Aura.Channel.Skills.Fighter
 		/// <param name="packet"></param>
 		public void Complete(Creature creature, Skill skill, Packet packet)
 		{
+			creature.Unlock(Locks.All, true);
 			Send.SkillComplete(creature, skill.Info.Id);
 
 			// Chain timer should be here somewhere

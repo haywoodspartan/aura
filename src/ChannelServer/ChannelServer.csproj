@@ -172,6 +172,7 @@
     <Compile Include="Skills\Combat\SuperWindmill.cs" />
     <Compile Include="Skills\Combat\Windmill.cs" />
     <Compile Include="Skills\Guns\DualGunMastery.cs" />
+    <Compile Include="Skills\Guns\Reload.cs" />
     <Compile Include="Skills\Hidden\BigBlessingWaterKit.cs" />
     <Compile Include="Skills\Hidden\Blessing.cs" />
     <Compile Include="Skills\Hidden\Dye.cs" />

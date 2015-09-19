@@ -23,9 +23,6 @@ namespace Aura.Channel.Skills.Guns
 	/// <summary>
 	/// Dual Gun Mastery skill handler
 	/// </summary>
-	/// Var 1: Damage
-	/// Var 2: Cooldown
-	/// Var 3: Range
 	[Skill(SkillId.DualGunMastery)]
 	public class DualGunMastery : ISkillHandler, IPreparable, IReadyable, IUseable, ICompletable, ICancelable
 	{
@@ -35,14 +32,9 @@ namespace Aura.Channel.Skills.Guns
 		private const string BulletCountTag = "GVBC";
 
 		/// <summary>
-		/// Attacker's stun
+		/// Attacker's stun after a kill
 		/// </summary>
-		private const int AttackerStun = 850;
-
-		/// <summary>
-		/// Target's stun
-		/// </summary>
-		private const int TargetStun = 1000; // Unofficial
+		private const int AfterKillStun = 850;
 
 		/// <summary>
 		/// Knockback Distance

@@ -1466,6 +1466,33 @@ namespace Aura.Channel.World.Entities
 			return (damage * this.GetRndMagicBalance());
 		}
 
+		/// <summary>
+		/// Calculates damage for dual guns
+		/// </summary>
+		/// <remarks>
+		/// http://wiki.mabinogiworld.com/view/Category:Dual_Guns
+		/// </remarks>
+		/// <returns></returns>
+		public float GetRndDualGunDamage()
+		{
+			// Min and Max from Str and Int stats
+			var minDamage = (float)(this.Str + this.Int) / 6;
+			var maxDamage = (float)(this.Str + this.Int) / 5;
+
+			// Min and Max from Gun item
+			var gunMinDamage = (this.RightHand == null ? 0 : this.RightHand.OptionInfo.AttackMin);
+			var gunMaxDamage = (this.RightHand == null ? 0 : this.RightHand.OptionInfo.AttackMax);
+
+			var totalMinDamage = minDamage + gunMinDamage;
+			var totalMaxDamage = maxDamage + gunMinDamage;
+
+			// Balance
+			var balance = (this.RightHand == null ? this.BalanceBase + this.BalanceBaseMod : this.RightHand.OptionInfo.Balance);
+
+			// Damage
+			return this.GetRndDamage(totalMinDamage, totalMaxDamage, balance);
+		}
+
 		public float GetRndRangedDamage()
 		{
 			// Base damage

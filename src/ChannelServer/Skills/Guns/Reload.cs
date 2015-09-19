@@ -50,17 +50,17 @@ namespace Aura.Channel.Skills.Guns
 
 			var castTime = (int)skill.RankData.Var1;
 
-			// Set Bullets Max Tag
+			// Set Bullets Max tag if it doesn't exist
 			if (!creature.RightHand.MetaData1.Has(BulletsMaxTag))
 			{
 				creature.RightHand.MetaData1.SetShort(BulletsMaxTag, (short)creature.RightHand.Data.BulletsMax);
 				Send.ItemUpdate(creature, creature.RightHand);
 			}
 
-			// Set BulletCountTag
+			// Set Bullet Count tag if it doesn't exist
 			if (!creature.RightHand.MetaData1.Has(BulletCountTag))
 			{
-				creature.RightHand.MetaData1.SetShort(BulletCountTag, 2);
+				creature.RightHand.MetaData1.SetShort(BulletCountTag, 0);
 				Send.ItemUpdate(creature, creature.RightHand);
 			}
 

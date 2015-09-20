@@ -32,6 +32,16 @@ namespace Aura.Channel.Skills.Guns
 		private const string BulletCountTag = "GVBC";
 
 		/// <summary>
+		/// Bullet Min damage tag
+		/// </summary>
+		private const string GBAMINTag = "GBAMIN";
+
+		/// <summary>
+		/// Bullet Max damage tag
+		/// </summary>
+		private const string GBAMAXTag = "GBAMAX";
+
+		/// <summary>
 		/// Max Bullets for Gun
 		/// </summary>
 		private const string BulletsMaxTag = "BulletsMax";
@@ -64,6 +74,14 @@ namespace Aura.Channel.Skills.Guns
 				Send.ItemUpdate(creature, creature.RightHand);
 			}
 
+			// Create GBAMIN and GBAMAX tags if they don't exist
+			if (!creature.RightHand.MetaData1.Has(GBAMINTag) && !creature.RightHand.MetaData1.Has(GBAMAXTag))
+			{
+				creature.RightHand.MetaData1.SetShort(GBAMINTag, 0);
+				creature.RightHand.MetaData1.SetShort(GBAMAXTag, 0);
+				Send.ItemUpdate(creature, creature.RightHand);
+			}
+
 			Send.SkillPrepare(creature, skill.Info.Id, castTime);
 
 			return true;
@@ -82,12 +100,52 @@ namespace Aura.Channel.Skills.Guns
 			skill.Stacks = 1;
 			skill.Stacks = 0;
 
+			// Get Bullet item in creature's inventory
+			var creatureItems = creature.Inventory.Items;
+			var creatureAmmo = creatureItems.Where(item => item.HasTag("/bullet/"));
+			var nearestX = creatureAmmo.Min(item => item.GetPosition().X);
+			var nearestY = creatureAmmo.Min(item => item.GetPosition().Y);
+			var ammoItem = creatureAmmo.Single(item => item.GetPosition().X == nearestX && item.GetPosition().Y == nearestY);
+			if (ammoItem == null)
+				return false;
+
+			// Add damage based on which type of bullet was selected
+			short damageAdded = 0;
+			switch (ammoItem.Info.Id)
+			{
+				case 45036: // Training Mana Bullet
+					damageAdded = 5;
+					break;
+
+				case 45037: // Mana Bullet
+					damageAdded = 10;
+					break;
+
+				case 45038: // High-Density Mana Bullet
+					damageAdded = 20;
+					break;
+
+				case 53564: // Suntouched Mana Bullet
+					damageAdded = 30;
+					break;
+
+				default:
+					damageAdded = 0;
+					break;
+			}
+
+
 			// Get Reload Amount (Max Bullets)
 			var ReloadAmount = creature.RightHand.MetaData1.GetShort(BulletsMaxTag);
 
 			// Gun Update
 			creature.RightHand.MetaData1.SetShort(BulletCountTag, ReloadAmount);
+			creature.RightHand.MetaData1.SetShort(GBAMINTag, damageAdded);
+			creature.RightHand.MetaData1.SetShort(GBAMAXTag, damageAdded);
 			Send.ItemUpdate(creature, creature.RightHand);
+
+			// Remove Bullet item
+			creature.Inventory.Decrement(ammoItem);
 
 			Send.UseMotion(creature, 131, 14);
 

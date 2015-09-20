@@ -59,7 +59,7 @@ namespace Aura.Channel.Skills.Guns
 		/// Distance to knock back enemy if stability is low enough
 		/// </summary>
 		private const int KnockbackDistance = 100;
-		
+
 		/// <summary>
 		/// Prepares the skill
 		/// </summary>
@@ -206,28 +206,27 @@ namespace Aura.Channel.Skills.Guns
 				}
 				else
 				{
-					if (target.IsKnockBackable)
+					// Reduce Stability if not knocked down
+					if (!target.IsKnockedDown)
 					{
-						// Knockdown
-						if (!target.IsKnockedDown)
-						{
-							target.Stability -= StabilityReduction;
-						}
+						target.Stability -= StabilityReduction;
+					}
 
-						// KnockDown and KnockBack - Bullet Slide
-						if (target.Stability < 40)
+					// KnockDown and KnockBack - Bullet Slide
+					if (target.Stability < 30)
+					{
+						if (target.IsUnstable && target.Is(RaceStands.KnockDownable))
 						{
-							if (target.Stability < 10)
-							{
-								tAction.Set(TargetOptions.KnockDown);
-							}
-							else
-							{
-								tAction.Set(TargetOptions.KnockBack);
-								aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
-							}
+							tAction.Set(TargetOptions.KnockDown);
 							attacker.Shove(target, KnockbackDistance);
 						}
+						else if (target.Is(RaceStands.KnockBackable))
+						{
+							tAction.Set(TargetOptions.KnockBack);
+							aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
+							attacker.Shove(target, KnockbackDistance);
+						}
+						// else, no Knockback, Knockdown, or Shove
 					}
 					tAction.Creature.Stun = tAction.Stun;
 				}

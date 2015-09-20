@@ -355,11 +355,6 @@ namespace Aura.Channel.World.Entities
 		public bool IsKnockedDown { get { return (DateTime.Now < this.KnockDownTime); } }
 
 		/// <summary>
-		/// Returns true if the creature can be knocked back or knocked down.
-		/// </summary>
-		public bool IsKnockBackable { get { return (this.RaceData.HasTag("/not_down/") ? false : true); } }
-
-		/// <summary>
 		/// Returns true if creature is able to run while having ranged loaded,
 		/// e.g. because its and elf or has a crossbow equipped.
 		/// </summary>

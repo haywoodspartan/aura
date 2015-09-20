@@ -53,7 +53,7 @@ namespace Aura.Channel.Skills.Guns
 		/// <summary>
 		/// Distance to Slide
 		/// </summary>
-		private const int SlideDistance = -700;
+		private const int SlideDistance = -750;
 
 		/// <summary>
 		/// Distance to knock back enemy if stability is low enough
@@ -145,9 +145,10 @@ namespace Aura.Channel.Skills.Guns
 			Send.ForceRunTo(attacker, newAttackerPos);
 
 			// Effects
-			Send.Effect(attacker, 332, (byte)1, 2300, (float)newAttackerPos.X, (float)newAttackerPos.Y);
-			Send.EffectDelayed(attacker, 233, 332, (byte)2, (float)500, 1167, (float)newAttackerPos.X, (float)newAttackerPos.Y);
-			Send.EffectDelayed(attacker, 334, 338, (short)skill.Info.Id, 833, (short)4, 0, targetEntityId, 134, targetEntityId, 268, targetEntityId, 402, targetEntityId);
+			Send.MotionCancel2(attacker, 0);
+			Send.Effect(attacker, 333, (byte)1, 2300, (float)newAttackerPos.X, (float)newAttackerPos.Y);
+			Send.EffectDelayed(attacker, 233, 333, (byte)2, (float)500, 1167, (float)newAttackerPos.X, (float)newAttackerPos.Y);
+			Send.EffectDelayed(attacker, 334, 339, (short)skill.Info.Id, 833, (short)4, 0, targetEntityId, 134, targetEntityId, 268, targetEntityId, 402, targetEntityId);
 
 			var maxHits = skill.RankData.Var1; // 4 Gun Attacks
 			var prevId = 0;
@@ -166,6 +167,7 @@ namespace Aura.Channel.Skills.Guns
 
 				var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
 				tAction.Set(TargetOptions.Result | TargetOptions.MultiHit);
+				tAction.Delay = 334;
 
 				cap.Add(aAction, tAction);
 
@@ -196,7 +198,6 @@ namespace Aura.Channel.Skills.Guns
 				// Stun Times
 				tAction.Stun = TargetStun;
 				aAction.Stun = AttackerStun;
-				tAction.Delay = 334;
 
 				// Death or Knockback
 				if (target.IsDead)
@@ -212,21 +213,19 @@ namespace Aura.Channel.Skills.Guns
 						target.Stability -= StabilityReduction;
 					}
 
-					// KnockDown and KnockBack - Bullet Slide
-					if (target.Stability < 30)
+					// Knockdown
+					if (target.IsUnstable && target.Is(RaceStands.KnockDownable))
 					{
-						if (target.IsUnstable && target.Is(RaceStands.KnockDownable))
-						{
-							tAction.Set(TargetOptions.KnockDown);
-							attacker.Shove(target, KnockbackDistance);
-						}
-						else if (target.Is(RaceStands.KnockBackable))
-						{
-							tAction.Set(TargetOptions.KnockBack);
-							aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
-							attacker.Shove(target, KnockbackDistance);
-						}
-						// else, no Knockback, Knockdown, or Shove
+						tAction.Set(TargetOptions.KnockDown);
+						attacker.Shove(target, KnockbackDistance);
+					}
+
+					// Always Knock Back
+					if (target.Is(RaceStands.KnockBackable))
+					{
+						tAction.Set(TargetOptions.KnockBack);
+						aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
+						attacker.Shove(target, KnockbackDistance);
 					}
 					tAction.Creature.Stun = tAction.Stun;
 				}

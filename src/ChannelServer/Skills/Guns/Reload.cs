@@ -101,10 +101,7 @@ namespace Aura.Channel.Skills.Guns
 			skill.Stacks = 0;
 
 			// Get Bullet item in creature's inventory
-			var creatureAmmo = creature.Inventory.Items.Where(item => item.HasTag("/bullet/"));
-			var nearestX = creatureAmmo.Min(item => item.GetPosition().X);
-			var nearestY = creatureAmmo.Min(item => item.GetPosition().Y);
-			var ammoItem = creatureAmmo.Single(item => item.GetPosition().X == nearestX && item.GetPosition().Y == nearestY);
+			var ammoItem = creature.Inventory.GetItem(item => item.HasTag("/bullet/"), World.Inventory.StartAt.BottomRight);
 			if (ammoItem == null)
 				return false;
 

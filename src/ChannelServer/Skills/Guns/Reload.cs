@@ -27,7 +27,7 @@ namespace Aura.Channel.Skills.Guns
 	public class Reload : ISkillHandler, IPreparable, IReadyable, ICompletable, ICancelable
 	{
 		/// <summary>
-		/// Bullet Count Tag for Item
+		/// Bullet Count Tag for Gun
 		/// </summary>
 		private const string BulletCountTag = "GVBC";
 

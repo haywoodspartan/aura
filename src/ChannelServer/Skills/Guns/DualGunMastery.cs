@@ -28,22 +28,22 @@ namespace Aura.Channel.Skills.Guns
 	/// Var5: Additional Max Damage
 	/// Var6: Additional Critical %
 	[Skill(SkillId.DualGunMastery)]
-	public class DualGunMastery : ISkillHandler, IPreparable, IUseable, ICompletable, ICancelable
+	public class DualGunMastery : ISkillHandler, IPreparable, ICombatSkill, ICompletable
 	{
 		/// <summary>
-		/// Bullet Count Tag for Item
+		/// Bullet Count Tag for Gun
 		/// </summary>
 		private const string BulletCountTag = "GVBC";
 
 		/// <summary>
 		/// Attacker's stun after a kill
 		/// </summary>
-		private const int AfterKillStun = 850;
+		private const int AfterKillStun = 530;
 
 		/// <summary>
 		/// Knockback Distance
 		/// </summary>
-		private const int KnockbackDistance = 300; // Unofficial
+		private const int KnockbackDistance = 210;
 
 		/// <summary>
 		/// Target's stability reduction on hit
@@ -59,6 +59,8 @@ namespace Aura.Channel.Skills.Guns
 		/// <returns></returns>
 		public bool Prepare(Creature creature, Skill skill, Packet packet)
 		{
+			var targetEntityId = packet.GetLong();
+
 			if (creature.RightHand == null)
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
@@ -69,14 +71,15 @@ namespace Aura.Channel.Skills.Guns
 				Send.ItemUpdate(creature, creature.RightHand);
 			}
 
-			// TODO: Reload when BulletCount < 2
-
 			// Check Bullet Count
 			var bulletCount = creature.RightHand.MetaData1.GetShort(BulletCountTag);
 			if (bulletCount < 2)
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
-			Send.SkillUse(creature, skill.Info.Id);
+			Send.SkillUseEntity(creature, skill.Info.Id, targetEntityId);
+
+			// Use the skill, since it doesn't get sent on its own for some reason...
+			this.Use(creature, skill, targetEntityId);
 
 			return true;
 		}
@@ -87,36 +90,39 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="attacker"></param>
 		/// <param name="skill"></param>
 		/// <param name="targetEntityId"></param>
-		public void Use(Creature attacker, Skill skill, Packet packet)
+		public CombatSkillResult Use(Creature attacker, Skill skill, long targetEntityId)
 		{
 			// Get Target
-			var targetEntityId = packet.GetLong();
 			var target = attacker.Region.GetCreature(targetEntityId);
 
 			// Check Target
 			if (target == null)
-			{
-				Send.Notice(attacker, Localization.Get("Invalid Target.")); // Unofficial
-				Send.SkillUseSilentCancel(attacker);
-				return;
-			}
+				return CombatSkillResult.InvalidTarget;
 
 			var targetPos = target.GetPosition();
-			var range = attacker.AttackRangeFor(target);
+			var range = attacker.AttackRangeFor(target) + 1000;
 
 			// Check Range
 			if (!attacker.GetPosition().InRange(targetPos, range))
 			{
-				Send.Notice(attacker, Localization.Get("Out of range.")); // Unofficial
-				Send.SkillUseSilentCancel(attacker);
-				return;
+				Send.Notice(attacker, Localization.Get("You are too far away."));
+				return CombatSkillResult.OutOfRange;
 			}
 
-			// Number of hits
-			byte hitCount = (byte)skill.RankData.Var1;
+			target.StopMove();
 
-			for (byte i = 1; i <= hitCount; ++i)
+			var maxHits = skill.RankData.Var1; // 2 Gun Attacks
+			var prevId = 0;
+
+			for (byte i = 1; i <= maxHits; ++i)
 			{
+				// Prepare Combat Actions
+				var cap = new CombatActionPack(attacker, skill.Info.Id);
+				cap.Type = CombatActionPackType.ChainRangeAttack;
+				cap.Hit = i;
+				cap.PrevId = prevId;
+				prevId = cap.Id;
+
 				// Prepare Combat Actions
 				var aAction = new AttackerAction(CombatActionType.RangeHit, attacker, skill.Info.Id, targetEntityId);
 				aAction.Set(AttackerOptions.Result);
@@ -124,7 +130,7 @@ namespace Aura.Channel.Skills.Guns
 				var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
 				tAction.Set(TargetOptions.Result);
 
-				var cap = new CombatActionPack(attacker, skill.Info.Id, aAction, tAction);
+				cap.Add(aAction, tAction);
 
 				// Damage
 				var damage = attacker.GetRndDualGunDamage();
@@ -135,7 +141,7 @@ namespace Aura.Channel.Skills.Guns
 				CriticalHit.Handle(attacker, critChance, ref damage, tAction);
 
 				// Subtract damage in respect to target's def/prot
-				SkillHelper.HandleDefenseProtection(target, ref damage); // Is this the same for ranged skills?
+				SkillHelper.HandleDefenseProtection(target, ref damage);
 
 				// Defense
 				Defense.Handle(aAction, tAction, ref damage);
@@ -158,13 +164,13 @@ namespace Aura.Channel.Skills.Guns
 				if (target.IsDead)
 				{
 					tAction.Set(TargetOptions.FinishingKnockDown);
-					aAction.Stun = AfterKillStun;
 					attacker.Shove(target, KnockbackDistance);
-					cap.Handle();
-					goto L_End;
+					aAction.Stun = AfterKillStun;
+					maxHits = 1;
 				}
 				else
 				{
+					// Knockdown
 					if (!target.IsKnockedDown)
 					{
 						target.Stability -= StabilityReduction;
@@ -174,23 +180,23 @@ namespace Aura.Channel.Skills.Guns
 					if (target.Stability < 30)
 					{
 						tAction.Set(TargetOptions.KnockBack);
+						aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
 						attacker.Shove(target, KnockbackDistance);
 					}
 					tAction.Creature.Stun = tAction.Stun;
 				}
-
 				aAction.Creature.Stun = aAction.Stun;
 				cap.Handle();
 			}
-
-			L_End:
 
 			// Item Update
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
 			bulletCount -= 2;
 			attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
 			Send.ItemUpdate(attacker, attacker.RightHand);
-        }
+
+			return CombatSkillResult.Okay;
+		}
 
 		/// <summary>
 		/// Completes the skill
@@ -201,15 +207,6 @@ namespace Aura.Channel.Skills.Guns
 		public void Complete(Creature creature, Skill skill, Packet packet)
 		{
 			Send.SkillComplete(creature, skill.Info.Id);
-		}
-
-		/// <summary>
-		/// Cancels the skill
-		/// </summary>
-		/// <param name="creature"></param>
-		/// <param name="skill"></param>
-		public void Cancel(Creature creature, Skill skill)
-		{
 		}
 	}
 }

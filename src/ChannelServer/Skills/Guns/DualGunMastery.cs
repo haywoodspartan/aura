@@ -172,25 +172,28 @@ namespace Aura.Channel.Skills.Guns
 				}
 				else
 				{
-					// Knockdown
-					if (!target.IsKnockedDown)
+					if (target.IsKnockBackable)
 					{
-						target.Stability -= StabilityReduction;
-					}
+						// Knockdown
+						if (!target.IsKnockedDown)
+						{
+							target.Stability -= StabilityReduction;
+						}
 
-					// Knockback
-					if (target.Stability < 40)
-					{
-						if (target.Stability < 10)
+						// Knockback
+						if (target.Stability < 40)
 						{
-							tAction.Set(TargetOptions.KnockDown);
+							if (target.Stability < 10)
+							{
+								tAction.Set(TargetOptions.KnockDown);
+							}
+							else
+							{
+								tAction.Set(TargetOptions.KnockBack);
+								aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
+							}
+							attacker.Shove(target, KnockbackDistance);
 						}
-						else
-						{
-							tAction.Set(TargetOptions.KnockBack);
-							aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
-						}
-						attacker.Shove(target, KnockbackDistance);
 					}
 					tAction.Creature.Stun = tAction.Stun;
 				}

@@ -24,7 +24,7 @@ namespace Aura.Channel.Skills.Guns
 	/// Dual Gun Mastery skill handler
 	/// </summary>
 	/// Bullet Use: 2
-	/// Var1: Hit Count
+	/// Var1: Bullet Use
 	/// Var4: Additional Min Damage
 	/// Var5: Additional Max Damage
 	/// Var6: Additional Critical %
@@ -74,7 +74,7 @@ namespace Aura.Channel.Skills.Guns
 
 			// Check Bullet Count
 			var bulletCount = creature.RightHand.MetaData1.GetShort(BulletCountTag);
-			if (bulletCount < 2)
+			if (bulletCount < skill.RankData.Var1)
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
 			Send.SkillUseEntity(creature, skill.Info.Id, targetEntityId);
@@ -113,7 +113,7 @@ namespace Aura.Channel.Skills.Guns
 			attacker.StopMove();
 			target.StopMove();
 
-			var maxHits = skill.RankData.Var1; // 2 Gun Attacks
+			var maxHits = 2; // 2 Gun Attacks
 			var prevId = 0;
 
 			for (byte i = 1; i <= maxHits; ++i)
@@ -200,9 +200,13 @@ namespace Aura.Channel.Skills.Guns
 				cap.Handle();
 			}
 
+			// Effects to target
+			Send.Effect(target, 298, (byte)0);
+			Send.Effect(target, 298, (byte)0);
+
 			// Item Update
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
-			bulletCount -= 2;
+			bulletCount -= (short)skill.RankData.Var1;
 			attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
 			Send.ItemUpdate(attacker, attacker.RightHand);
 

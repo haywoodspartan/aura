@@ -24,7 +24,7 @@ namespace Aura.Channel.Skills.Guns
 	/// Bullet Slide Handler
 	/// </summary>
 	/// Bullet Use: 4
-	/// Var1: Hit Count
+	/// Var1: Bullet Use
 	/// Var2: Damage
 	/// Var3: ?
 	[Skill(SkillId.BulletSlide)]
@@ -79,11 +79,9 @@ namespace Aura.Channel.Skills.Guns
 				Send.ItemUpdate(creature, creature.RightHand);
 			}
 
-			// Client will automatically send reload if bullet count isn't enough
-
 			// Check Bullet Count
 			var bulletCount = creature.RightHand.MetaData1.GetShort(BulletCountTag);
-			if (bulletCount < 4)
+			if (bulletCount < skill.RankData.Var1)
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
 			Send.SkillPrepare(creature, skill.Info.Id, skill.GetCastTime());
@@ -150,7 +148,7 @@ namespace Aura.Channel.Skills.Guns
 			Send.EffectDelayed(attacker, 233, 333, (byte)2, (float)500, 1167, (float)newAttackerPos.X, (float)newAttackerPos.Y);
 			Send.EffectDelayed(attacker, 334, 339, (short)skill.Info.Id, 833, (short)4, 0, targetEntityId, 134, targetEntityId, 268, targetEntityId, 402, targetEntityId);
 
-			var maxHits = skill.RankData.Var1; // 4 Gun Attacks
+			var maxHits = 4; // 4 Gun Attacks
 			var prevId = 0;
 
 			for (byte i = 1; i <= maxHits; ++i)
@@ -233,9 +231,13 @@ namespace Aura.Channel.Skills.Guns
 				cap.Handle();
 			}
 
+			// Effects to target
+			Send.Effect(target, 298, (byte)0);
+			Send.Effect(target, 298, (byte)0);
+
 			// Item Update
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
-			bulletCount -= 4;
+			bulletCount -= (short)skill.RankData.Var1; // 4 Bullets
 			attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
 			Send.ItemUpdate(attacker, attacker.RightHand);
 
@@ -252,6 +254,7 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="packet"></param>
 		public void Complete(Creature creature, Skill skill, Packet packet)
 		{
+			Send.Effect(creature, 333, (byte)3);
 			Send.SkillComplete(creature, skill.Info.Id);
 		}
 

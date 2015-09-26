@@ -39,17 +39,17 @@ namespace Aura.Channel.Skills.Guns
 		/// <summary>
 		/// Attacker's stun after skill use
 		/// </summary>
-		private const int AttackerStun = 530;
+		private const int AttackerStun = 0;
 
 		/// <summary>
 		/// Target's stun after being hit
 		/// </summary>
-		private const int TargetStun = 4000;
+		private const int TargetStun = 2000;
 
 		/// <summary>
 		/// Knockback Distance if killed
 		/// </summary>
-		private const int KnockbackDistance = 100;
+		private const int KnockbackDistance = 150;
 
 		/// <summary>
 		/// Target's stability reduction on hit
@@ -171,7 +171,7 @@ namespace Aura.Channel.Skills.Guns
 			p.PutString("CONDITION_FAST_MOVE_FACTOR: f:1.500000; CONDITION_FAST_MOVE_NO_LOCK: b: true;");
 			p.PutLong(0);
 			attacker.Region.Broadcast(p, attacker);
-
+			
 			// Move attacker to new position
 			Send.ForceRunTo(attacker, newAttackerPos);
 
@@ -181,7 +181,9 @@ namespace Aura.Channel.Skills.Guns
 
 			// Remove Conditions
 			attacker.Conditions.Deactivate(ConditionsD.Steadfast);
-			attacker.Conditions.Deactivate(ConditionsC.FastMove);
+			var p2 = new Packet(Op.ConditionUpdate, attacker.EntityId); // Fast Move Condition - Needs extra packet entries
+			p2.PutLong(0).PutLong(0).PutLong(0).PutLong(0).PutLong(0).PutLong(0).PutInt(0).PutLong(0);
+			attacker.Region.Broadcast(p2, attacker);
 
 			// Complete
 			Send.SkillComplete(attacker, skill.Info.Id);
@@ -195,11 +197,11 @@ namespace Aura.Channel.Skills.Guns
 			cap.Type = CombatActionPackType.NormalAttack;
 
 			var aAction = new AttackerAction(CombatActionType.SpecialHit, attacker, skill.Info.Id, targetEntityId);
-			aAction.Set(AttackerOptions.Result);
+			aAction.Set(AttackerOptions.UseEffect);
+			aAction.PropId = targetEntityId;
 
 			var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
-			tAction.Set(TargetOptions.MultiHit);
-			tAction.Delay = 334;
+			tAction.Set(TargetOptions.Result);
 
 			cap.Add(aAction, tAction);
 
@@ -256,7 +258,7 @@ namespace Aura.Channel.Skills.Guns
 					else if (target.Is(RaceStands.KnockBackable))
 					{
 						tAction.Set(TargetOptions.KnockBack);
-						aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
+						aAction.Set(AttackerOptions.KnockBackHit1);
 						attacker.Shove(target, KnockbackDistance);
 					}
 				}
@@ -267,7 +269,7 @@ namespace Aura.Channel.Skills.Guns
 
 			// Item Update
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
-			bulletCount -= (short)skill.RankData.Var1;
+			bulletCount -= (short)skill.RankData.Var1; // 2 Bullets
 			attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
 			Send.ItemUpdate(attacker, attacker.RightHand);
 		}

@@ -436,6 +436,32 @@ namespace Aura.Channel.Skills
 		public SkillId AttackerSkillId { get; set; }
 
 		/// <summary>
+		/// Hit count of MultiHit action
+		/// </summary>
+		/// <remarks>
+		/// Only used with MultiHit TargetOption
+		/// </remarks>
+		public int MultiHitDamageCount { get; set; }
+
+		/// <summary>
+		/// ShowTime of MultiHit TargetOption
+		/// </summary>
+		/// <remarks>
+		/// Functions similarly to Delay
+		/// </remarks>
+		public int MultiHitDamageShowTime { get; set; }
+
+		/// <summary>
+		/// Used in MultiHit TargetOption
+		/// </summary>
+		public int MultiHitUnk1 { get; set; }
+
+		/// <summary>
+		/// Used in MultiHit TargetOpton
+		/// </summary>
+		public int MultiHitUnk2 { get; set; }
+
+		/// <summary>
 		/// Returns true if any option involving knocking back/down is
 		/// active, including finishers.
 		/// </summary>

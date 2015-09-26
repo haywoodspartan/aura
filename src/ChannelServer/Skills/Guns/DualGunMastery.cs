@@ -44,7 +44,7 @@ namespace Aura.Channel.Skills.Guns
 		/// <summary>
 		/// Knockback Distance
 		/// </summary>
-		private const int KnockbackDistance = 210;
+		private const int KnockbackDistance = 300;
 
 		/// <summary>
 		/// Target's stability reduction on hit

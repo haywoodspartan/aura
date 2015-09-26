@@ -25,7 +25,7 @@ namespace Aura.Channel.Skills.Guns
 	/// </summary>
 	/// Bullet Use: 4
 	/// Var1: Bullet Use
-	/// Var2: Damage
+	/// Var2: Damage (Divided By 4)
 	/// Var3: ?
 	[Skill(SkillId.BulletSlide)]
 	public class BulletSlide : ISkillHandler, IPreparable, IReadyable, IUseable, ICompletable, ICancelable
@@ -148,88 +148,82 @@ namespace Aura.Channel.Skills.Guns
 			Send.EffectDelayed(attacker, 233, 333, (byte)2, (float)500, 1167, (float)newAttackerPos.X, (float)newAttackerPos.Y);
 			Send.EffectDelayed(attacker, 334, 339, (short)skill.Info.Id, 833, (short)4, 0, targetEntityId, 134, targetEntityId, 268, targetEntityId, 402, targetEntityId);
 
-			var maxHits = 4; // 4 Gun Attacks
-			var prevId = 0;
+			// Prepare Combat Actions
+			var cap = new CombatActionPack(attacker, skill.Info.Id);
 
-			for (byte i = 1; i <= maxHits; ++i)
+			var aAction = new AttackerAction(CombatActionType.SpecialHit, attacker, skill.Info.Id, targetEntityId);
+			aAction.Set(AttackerOptions.Result);
+
+			var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
+			tAction.Set(TargetOptions.Result | TargetOptions.MultiHit);
+			tAction.MultiHitDamageCount = 4;
+			tAction.MultiHitDamageShowTime = 134;
+			tAction.MultiHitUnk1 = 0;
+			tAction.MultiHitUnk2 = 421141782;
+            tAction.Delay = 334;
+
+			cap.Add(aAction, tAction);
+
+			// Damage
+			var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f)) * 4;
+
+			// Critical Hit
+			var dgm = attacker.Skills.Get(SkillId.DualGunMastery);
+			var extraCritChance = (dgm == null ? 0 : dgm.RankData.Var6);
+			var critChance = attacker.GetRightCritChance(target.Protection) + extraCritChance;
+			CriticalHit.Handle(attacker, critChance, ref damage, tAction);
+
+			// Defense and Prot
+			SkillHelper.HandleDefenseProtection(target, ref damage);
+
+			// Defense
+			Defense.Handle(aAction, tAction, ref damage);
+
+			// Mana Shield
+			ManaShield.Handle(target, ref damage, tAction);
+
+			// Apply Damage
+			target.TakeDamage(tAction.Damage = damage, attacker);
+
+			// Aggro
+			target.Aggro(attacker);
+
+			// Stun Times
+			tAction.Stun = TargetStun;
+			aAction.Stun = AttackerStun;
+
+			// Death or Knockback
+			if (target.IsDead)
 			{
-				// Prepare Combat Actions
-				var cap = new CombatActionPack(attacker, skill.Info.Id);
-				cap.Type = CombatActionPackType.NormalAttack;
-				cap.Hit = i;
-				cap.PrevId = prevId;
-				prevId = cap.Id;
-
-				var aAction = new AttackerAction(CombatActionType.SpecialHit, attacker, skill.Info.Id, targetEntityId);
-				aAction.Set(AttackerOptions.Result);
-
-				var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
-				tAction.Set(TargetOptions.Result | TargetOptions.MultiHit);
-				tAction.Delay = 334;
-
-				cap.Add(aAction, tAction);
-
-				// Damage
-				var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f));
-
-				// Critical Hit
-				var dgm = attacker.Skills.Get(SkillId.DualGunMastery);
-				var extraCritChance = (dgm == null ? 0 : dgm.RankData.Var6);
-				var critChance = attacker.GetRightCritChance(target.Protection) + extraCritChance;
-				CriticalHit.Handle(attacker, critChance, ref damage, tAction);
-
-				// Defense and Prot
-				SkillHelper.HandleDefenseProtection(target, ref damage);
-
-				// Defense
-				Defense.Handle(aAction, tAction, ref damage);
-
-				// Mana Shield
-				ManaShield.Handle(target, ref damage, tAction);
-
-				// Apply Damage
-				target.TakeDamage(tAction.Damage = damage, attacker);
-
-				// Aggro
-				target.Aggro(attacker);
-
-				// Stun Times
-				tAction.Stun = TargetStun;
-				aAction.Stun = AttackerStun;
-
-				// Death or Knockback
-				if (target.IsDead)
+				tAction.Set(TargetOptions.FinishingKnockDown);
+				attacker.Shove(target, KnockbackDistance);
+			}
+			else
+			{
+				// Reduce Stability if not knocked down
+				if (!target.IsKnockedDown)
 				{
-					tAction.Set(TargetOptions.FinishingKnockDown);
+					target.Stability -= StabilityReduction;
+				}
+
+				// Knockdown
+				if (target.IsUnstable && target.Is(RaceStands.KnockDownable))
+				{
+					tAction.Set(TargetOptions.KnockDown);
 					attacker.Shove(target, KnockbackDistance);
 				}
-				else
+
+				// Always Knock Back
+				if (target.Is(RaceStands.KnockBackable))
 				{
-					// Reduce Stability if not knocked down
-					if (!target.IsKnockedDown)
-					{
-						target.Stability -= StabilityReduction;
-					}
-
-					// Knockdown
-					if (target.IsUnstable && target.Is(RaceStands.KnockDownable))
-					{
-						tAction.Set(TargetOptions.KnockDown);
-						attacker.Shove(target, KnockbackDistance);
-					}
-
-					// Always Knock Back
-					if (target.Is(RaceStands.KnockBackable))
-					{
-						tAction.Set(TargetOptions.KnockBack);
-						aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
-						attacker.Shove(target, KnockbackDistance);
-					}
-					tAction.Creature.Stun = tAction.Stun;
+					tAction.Set(TargetOptions.KnockBack);
+					aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
+					attacker.Shove(target, KnockbackDistance);
 				}
-				aAction.Creature.Stun = aAction.Stun;
-				cap.Handle();
+				tAction.Creature.Stun = tAction.Stun;
 			}
+			aAction.Creature.Stun = aAction.Stun;
+			cap.Handle();
 
 			// Effects to target
 			Send.Effect(target, 298, (byte)0);

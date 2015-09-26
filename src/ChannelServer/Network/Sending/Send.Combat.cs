@@ -145,8 +145,10 @@ namespace Aura.Channel.Network.Sending
 
 					if ((tAction.Options & TargetOptions.MultiHit) != 0)
 					{
-						actionPacket.PutUInt(0); // MultiHitDamageCount
-						actionPacket.PutUInt(0); // MultiHitDamageShowTime
+						actionPacket.PutUInt((uint)tAction.MultiHitDamageCount); // MultiHitDamageCount
+						actionPacket.PutUInt((uint)tAction.MultiHitDamageShowTime); // MultiHitDamageShowTime
+						actionPacket.PutUInt((uint)tAction.MultiHitUnk1); // ??? Only seen value has been 0
+						actionPacket.PutUInt((uint)tAction.MultiHitUnk2); // Divides Multi Hit Damage? Possibly MultiHit Options.
 					}
 
 					actionPacket.PutByte(tAction.EffectFlags); // PDef? Seen as 0x20 in a normal attack (G18)

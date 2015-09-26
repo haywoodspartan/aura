@@ -194,7 +194,6 @@ namespace Aura.Channel.Skills.Guns
 
 			// Prepare Combat Actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
-			cap.Type = CombatActionPackType.NormalAttack;
 
 			var aAction = new AttackerAction(CombatActionType.SpecialHit, attacker, skill.Info.Id, targetEntityId);
 			aAction.Set(AttackerOptions.UseEffect);

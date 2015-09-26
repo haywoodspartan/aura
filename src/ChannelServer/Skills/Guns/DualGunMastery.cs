@@ -29,7 +29,7 @@ namespace Aura.Channel.Skills.Guns
 	/// Var5: Additional Max Damage
 	/// Var6: Additional Critical %
 	[Skill(SkillId.DualGunMastery)]
-	public class DualGunMastery : ISkillHandler, IPreparable, ICombatSkill, ICompletable
+	public class DualGunMastery : ISkillHandler, IPreparable, ICombatSkill, ICompletable, IInitiableSkillHandler
 	{
 		/// <summary>
 		/// Bullet Count Tag for Gun
@@ -50,6 +50,14 @@ namespace Aura.Channel.Skills.Guns
 		/// Target's stability reduction on hit
 		/// </summary>
 		private const int StabilityReduction = 10;
+
+		/// <summary>
+		/// Subscribes handlers to events required for training.
+		/// </summary>
+		public void Init()
+		{
+			ChannelServer.Instance.Events.CreatureAttackedByPlayer += this.OnCreatureAttackedByPlayer;
+		}
 
 		/// <summary>
 		/// Prepares skill
@@ -222,6 +230,55 @@ namespace Aura.Channel.Skills.Guns
 		public void Complete(Creature creature, Skill skill, Packet packet)
 		{
 			Send.SkillComplete(creature, skill.Info.Id);
+		}
+
+		/// <summary>
+		/// Training, called when someone attacks something.
+		/// </summary>
+		/// <param name="action"></param>
+		public void OnCreatureAttackedByPlayer(TargetAction action)
+		{
+			// Guns use Combat Mastery as TargetAction skill
+			if (action.SkillId != SkillId.CombatMastery)
+				return;
+
+			// Get skill
+			var attackerSkill = action.Attacker.Skills.Get(SkillId.DualGunMastery);
+			if (attackerSkill == null) return; // Should be impossible.
+
+			// Learning by attacking
+			switch (attackerSkill.Info.Rank)
+			{
+				case SkillRank.RF:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(2); // Critical Hit
+					break;
+
+				case SkillRank.RE:
+					attackerSkill.Train(1); // Attack and enemy.
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(1); // Critical Hit
+					break;
+
+				case SkillRank.RD:
+					attackerSkill.Train(1, 0.5); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2, 0.5); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3, 1); // Critical Hit
+					break;
+
+				case SkillRank.RC:
+				case SkillRank.RB:
+				case SkillRank.RA:
+				case SkillRank.R9:
+				case SkillRank.R8:
+				case SkillRank.R7:
+				case SkillRank.R6:
+				case SkillRank.R5:
+				case SkillRank.R4:
+				case SkillRank.R3:
+				case SkillRank.R2:
+				case SkillRank.R1:
+					break;
+			}
 		}
 	}
 }

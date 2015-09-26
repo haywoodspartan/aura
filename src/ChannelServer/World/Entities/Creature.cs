@@ -1486,6 +1486,18 @@ namespace Aura.Channel.World.Entities
 			var totalMinDamage = minDamage + gunMinDamage;
 			var totalMaxDamage = maxDamage + gunMinDamage;
 
+			var addedBulletDamage = 0;
+
+			// Max from Gun Bullet
+			if (this.RightHand != null)
+			{
+				if (this.RightHand.MetaData1.Has("GBAMAX"))
+				{
+					addedBulletDamage = this.RightHand.MetaData1.GetShort("GBAMAX");
+					totalMaxDamage += addedBulletDamage;
+				}
+			}
+
 			// Balance
 			var balance = (this.RightHand == null ? this.BalanceBase + this.BalanceBaseMod : this.RightHand.OptionInfo.Balance);
 

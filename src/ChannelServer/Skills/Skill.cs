@@ -158,7 +158,7 @@ namespace Aura.Channel.Skills
 		/// </summary>
 		/// <param name="condition"></param>
 		/// <param name="amount"></param>
-		public void Train(int condition, double amount = 1)
+		public void Train(int condition, int amount = 1)
 		{
 			// Only characters can train skills.
 			if (!_creature.IsCharacter)
@@ -169,7 +169,7 @@ namespace Aura.Channel.Skills
 			// Apply skill exp multiplier
 			if (ChannelServer.Instance.Conf.World.SkillExpRate != 1)
 			{
-				amount = (double)(amount * ChannelServer.Instance.Conf.World.SkillExpRate);
+				amount = (int)(amount * ChannelServer.Instance.Conf.World.SkillExpRate);
 				bonus = string.Format(Localization.Get(" (Skill Exp Rate Bonus: x{0})"), ChannelServer.Instance.Conf.World.SkillExpRate.ToString(CultureInfo.InvariantCulture));
 			}
 

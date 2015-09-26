@@ -260,9 +260,9 @@ namespace Aura.Channel.Skills.Guns
 					break;
 
 				case SkillRank.RD:
-					attackerSkill.Train(1, 0.5); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2, 0.5); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3, 1); // Critical Hit
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(1); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(1); // Critical Hit
 					break;
 
 				case SkillRank.RC:

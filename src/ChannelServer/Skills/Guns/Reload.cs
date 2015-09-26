@@ -130,6 +130,10 @@ namespace Aura.Channel.Skills.Guns
 					break;
 			}
 
+			// Training - All requirements are the same for each rank
+			var beforeReloadAmmo = creature.RightHand.MetaData1.GetShort(BulletCountTag);
+			skill.Train(1); // Use the skill successfully
+			if (beforeReloadAmmo == 0) skill.Train(2); // Use the skill when out of Mana Bullets
 
 			// Get Reload Amount (Max Bullets)
 			var ReloadAmount = creature.RightHand.MetaData1.GetShort(BulletsMaxTag);

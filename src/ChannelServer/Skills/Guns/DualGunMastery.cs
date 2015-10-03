@@ -135,7 +135,7 @@ namespace Aura.Channel.Skills.Guns
 
 				// Prepare Combat Actions
 				var aAction = new AttackerAction(CombatActionType.RangeHit, attacker, skill.Info.Id, targetEntityId);
-				aAction.Set(AttackerOptions.Result);
+				aAction.Set(AttackerOptions.Result | AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
 
 				var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
 				tAction.Set(TargetOptions.Result);
@@ -197,7 +197,6 @@ namespace Aura.Channel.Skills.Guns
 						else if (target.Is(RaceStands.KnockBackable))
 						{
 							tAction.Set(TargetOptions.KnockBack);
-							aAction.Set(AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
 							attacker.Shove(target, KnockbackDistance);
 						}
 						// else, no Knockback, Knockdown, or Shove

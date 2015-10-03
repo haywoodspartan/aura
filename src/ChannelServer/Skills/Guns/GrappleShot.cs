@@ -171,7 +171,7 @@ namespace Aura.Channel.Skills.Guns
 			p.PutString("CONDITION_FAST_MOVE_FACTOR: f:1.500000; CONDITION_FAST_MOVE_NO_LOCK: b: true;");
 			p.PutLong(0);
 			attacker.Region.Broadcast(p, attacker);
-			
+
 			// Move attacker to new position
 			Send.ForceRunTo(attacker, newAttackerPos);
 
@@ -196,7 +196,7 @@ namespace Aura.Channel.Skills.Guns
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
 
 			var aAction = new AttackerAction(CombatActionType.SpecialHit, attacker, skill.Info.Id, targetEntityId);
-			aAction.Set(AttackerOptions.UseEffect);
+			aAction.Set(AttackerOptions.UseEffect | AttackerOptions.KnockBackHit1);
 			aAction.PropId = targetEntityId;
 
 			var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
@@ -257,7 +257,6 @@ namespace Aura.Channel.Skills.Guns
 					else if (target.Is(RaceStands.KnockBackable))
 					{
 						tAction.Set(TargetOptions.KnockBack);
-						aAction.Set(AttackerOptions.KnockBackHit1);
 						attacker.Shove(target, KnockbackDistance);
 					}
 				}

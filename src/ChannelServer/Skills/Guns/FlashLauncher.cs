@@ -21,14 +21,14 @@ using System.Threading.Tasks;
 namespace Aura.Channel.Skills.Guns
 {
 	/// <summary>
-	/// Bullet Slide Handler
+	/// Flash Launcher skill handler
 	/// </summary>
 	/// Bullet Use: 4
-	/// Var1: Bullet Use
-	/// Var2: Damage (Divided By 4)
-	/// Var3: ?
-	[Skill(SkillId.BulletSlide)]
-	public class BulletSlide : ISkillHandler, IPreparable, IReadyable, IUseable, ICompletable, ICancelable
+	/// Var 1: Bullet Use
+	/// Var 2: Damage
+	/// Var 3: Damage added with Master Title (20%)
+	[Skill(SkillId.FlashLauncher)]
+	public class FlashLauncher : ISkillHandler, IPreparable, IReadyable, ICombatSkill, ICompletable, IInitiableSkillHandler
 	{
 		/// <summary>
 		/// Bullet Count Tag for Gun
@@ -36,29 +36,32 @@ namespace Aura.Channel.Skills.Guns
 		private const string BulletCountTag = "GVBC";
 
 		/// <summary>
-		/// Stun for attacker after skill use
+		/// Attacker's stun upon using the skill
 		/// </summary>
-		private const int AttackerStun = 700;
+		private const int AttackerStun = 530;
 
 		/// <summary>
-		/// Stun for target after attacker's skill use
+		/// Target's stun after getting hit
 		/// </summary>
-		private const int TargetStun = 4000;
+		private const int TargetStun = 3500;
 
 		/// <summary>
-		/// Stability reduction for target
+		/// Distance target gets knocked back
+		/// </summary>
+		private const int KnockbackDistance = 150;
+
+		/// <summary>
+		/// Target's stability reduction
 		/// </summary>
 		private const int StabilityReduction = 10;
 
 		/// <summary>
-		/// Distance to Slide
+		/// Subscribes handlers to events required for training.
 		/// </summary>
-		private const int SlideDistance = -750;
-
-		/// <summary>
-		/// Distance to knock back enemy if stability is low enough
-		/// </summary>
-		private const int KnockbackDistance = 100;
+		public void Init()
+		{
+			ChannelServer.Instance.Events.CreatureAttackedByPlayer += this.OnCreatureAttackedByPlayer;
+		}
 
 		/// <summary>
 		/// Prepares the skill
@@ -104,68 +107,50 @@ namespace Aura.Channel.Skills.Guns
 			return true;
 		}
 
-		/// <summary>
-		/// Uses Bullet Slide
-		/// </summary>
-		/// <param name="creature"></param>
-		/// <param name="skill"></param>
-		/// <param name="packet"></param>
-		public void Use(Creature attacker, Skill skill, Packet packet)
+		public CombatSkillResult Use(Creature attacker, Skill skill, long targetEntityId)
 		{
-			// Get Target
-			var targetEntityId = packet.GetLong();
+			// Get target
 			var target = attacker.Region.GetCreature(targetEntityId);
 
-			// Check Target
+			// Check target
 			if (target == null)
-			{
-				Send.Notice(attacker, Localization.Get("Invalid Target"));
-				Send.SkillUseSilentCancel(attacker);
-				return;
-			}
+				return CombatSkillResult.InvalidTarget;
 
-			// Check Range
-			var range = attacker.AttackRangeFor(target) + attacker.RightHand.Data.Range;
-			if (!attacker.GetPosition().InRange(target.GetPosition(), range))
+			var targetPos = target.GetPosition();
+			var range = attacker.AttackRangeFor(target);
+
+			// Check range
+			if (!attacker.GetPosition().InRange(targetPos, range))
 			{
 				Send.Notice(attacker, Localization.Get("You are too far away."));
-				Send.SkillUseSilentCancel(attacker);
-				return;
+				return CombatSkillResult.OutOfRange;
 			}
 
 			attacker.StopMove();
 			target.StopMove();
 
-			// Slide
-			var targetPos = target.GetPosition();
-			var attackerPos = attacker.GetPosition();
-			var newAttackerPos = attackerPos.GetRelative(targetPos, SlideDistance);
-			Send.ForceRunTo(attacker, newAttackerPos);
-
 			// Effects
-			Send.MotionCancel2(attacker, 0);
-			Send.Effect(attacker, 333, (byte)1, 2300, (float)newAttackerPos.X, (float)newAttackerPos.Y);
-			Send.EffectDelayed(attacker, 233, 333, (byte)2, (float)500, 1167, (float)newAttackerPos.X, (float)newAttackerPos.Y);
-			Send.EffectDelayed(attacker, 334, 339, (short)skill.Info.Id, 833, (short)4, 0, targetEntityId, 134, targetEntityId, 268, targetEntityId, 402, targetEntityId);
+			Send.Effect(attacker, 329, (byte)1, (byte)1, 1400);
 
-			// Prepare Combat Actions
+			// Insert Condition Here
+
+			// Prepare combat actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
 
-			var aAction = new AttackerAction(CombatActionType.SpecialHit, attacker, skill.Info.Id, targetEntityId);
+			var aAction = new AttackerAction(CombatActionType.RangeHit, attacker, skill.Info.Id, targetEntityId);
 			aAction.Set(AttackerOptions.Result | AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
 
 			var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
-			tAction.Set(TargetOptions.Result | TargetOptions.MultiHit);
-			tAction.MultiHitDamageCount = 4;
-			tAction.MultiHitDamageShowTime = 134;
-			tAction.MultiHitUnk1 = 0;
-			tAction.MultiHitUnk2 = 421141782;
-            tAction.Delay = 334;
+			tAction.Set(TargetOptions.Result);
 
 			cap.Add(aAction, tAction);
 
 			// Damage
-			var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f)) * 4;
+			var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f));
+
+			// Master Title
+			if (attacker.Titles.SelectedTitle == 10914)
+				damage += (damage * (skill.RankData.Var3 / 100f)); // +20% damage
 
 			// Critical Hit
 			var dgm = attacker.Skills.Get(SkillId.DualGunMastery);
@@ -192,7 +177,7 @@ namespace Aura.Channel.Skills.Guns
 			tAction.Stun = TargetStun;
 			aAction.Stun = AttackerStun;
 
-			// Death or Knockback
+			// Death or knockback
 			if (target.IsDead)
 			{
 				tAction.Set(TargetOptions.FinishingKnockDown);
@@ -206,17 +191,10 @@ namespace Aura.Channel.Skills.Guns
 					target.Stability -= StabilityReduction;
 				}
 
-				// Knockdown
-				if (target.IsUnstable && target.Is(RaceStands.KnockDownable))
+				// Always knock down
+				if (target.Is(RaceStands.KnockDownable))
 				{
 					tAction.Set(TargetOptions.KnockDown);
-					attacker.Shove(target, KnockbackDistance);
-				}
-
-				// Always Knock Back
-				if (target.Is(RaceStands.KnockBackable))
-				{
-					tAction.Set(TargetOptions.KnockBack);
 					attacker.Shove(target, KnockbackDistance);
 				}
 				tAction.Creature.Stun = tAction.Stun;
@@ -228,36 +206,42 @@ namespace Aura.Channel.Skills.Guns
 			Send.Effect(target, 298, (byte)0);
 			Send.Effect(target, 298, (byte)0);
 
-			// Item Update
-			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
-			bulletCount -= (short)skill.RankData.Var1; // 4 Bullets
-			attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
-			Send.ItemUpdate(attacker, attacker.RightHand);
-
-			skill.Stacks = 0;
-
-			Send.SkillUse(attacker, skill.Info.Id, targetEntityId, 0, 1);
 		}
 
 		/// <summary>
-		/// Completes the skill
+		/// Training, called when someone attacks something.
 		/// </summary>
-		/// <param name="creature"></param>
-		/// <param name="skill"></param>
-		/// <param name="packet"></param>
-		public void Complete(Creature creature, Skill skill, Packet packet)
+		/// <param name="action"></param>
+		public void OnCreatureAttackedByPlayer(TargetAction action)
 		{
-			Send.Effect(creature, 333, (byte)3);
-			Send.SkillComplete(creature, skill.Info.Id);
-		}
+			// Guns use Combat Mastery as TargetAction skill
+			if (action.SkillId != SkillId.CombatMastery)
+				return;
 
-		/// <summary>
-		/// Cancels the skill
-		/// </summary>
-		/// <param name="creature"></param>
-		/// <param name="skill"></param>
-		public void Cancel(Creature creature, Skill skill)
-		{
+			// Get skill
+			var attackerSkill = action.Attacker.Skills.Get(SkillId.FlashLauncher);
+			if (attackerSkill == null) return; // Should be impossible.
+
+			// Learning by attacking
+			switch (attackerSkill.Info.Rank)
+			{
+				case SkillRank.RF:
+				case SkillRank.RE:
+				case SkillRank.RD:
+				case SkillRank.RC:
+				case SkillRank.RB:
+				case SkillRank.RA:
+				case SkillRank.R9:
+				case SkillRank.R8:
+				case SkillRank.R7:
+				case SkillRank.R6:
+				case SkillRank.R5:
+				case SkillRank.R4:
+				case SkillRank.R3:
+				case SkillRank.R2:
+				case SkillRank.R1:
+					break;
+			}
 		}
 	}
 }

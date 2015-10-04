@@ -28,7 +28,7 @@ namespace Aura.Channel.Skills.Guns
 	/// Var 2: Damage
 	/// Var 3: Damage added with Master Title (20%)
 	[Skill(SkillId.FlashLauncher)]
-	public class FlashLauncher : ISkillHandler, IPreparable, IReadyable, ICombatSkill, ICompletable, IInitiableSkillHandler
+	public class FlashLauncher : ISkillHandler, IPreparable, IReadyable, ICombatSkill, ICompletable, ICancelable, IInitiableSkillHandler
 	{
 		/// <summary>
 		/// Bullet Count Tag for Gun
@@ -48,12 +48,17 @@ namespace Aura.Channel.Skills.Guns
 		/// <summary>
 		/// Distance target gets knocked back
 		/// </summary>
-		private const int KnockbackDistance = 150;
+		private const int KnockbackDistance = 450;
 
 		/// <summary>
 		/// Target's stability reduction
 		/// </summary>
 		private const int StabilityReduction = 10;
+
+		/// <summary>
+		/// Distance to Slide
+		/// </summary>
+		private const int SlideDistance = -450;
 
 		/// <summary>
 		/// Subscribes handlers to events required for training.
@@ -129,6 +134,8 @@ namespace Aura.Channel.Skills.Guns
 			attacker.StopMove();
 			target.StopMove();
 
+			attacker.TurnTo(targetPos);
+
 			// Effects
 			Send.Effect(attacker, 329, (byte)1, (byte)1, 1400);
 
@@ -202,10 +209,35 @@ namespace Aura.Channel.Skills.Guns
 			aAction.Creature.Stun = aAction.Stun;
 			cap.Handle();
 
-			// Effects to target
-			Send.Effect(target, 298, (byte)0);
-			Send.Effect(target, 298, (byte)0);
+			Send.SkillUse(attacker, skill.Info.Id, 1);
+			skill.Stacks = 0;
 
+			var attackerSlidePos = attacker.GetPosition().GetRelative(targetPos, SlideDistance);
+
+			// Effects
+			Send.Effect(target, 298, (byte)0);
+			Send.Effect(target, 298, (byte)0);
+			Send.EffectDelayed(target, 400, 338, (byte)0, (float)targetPos.X, (float)targetPos.Y, 400, 1000);
+			Send.EffectDelayed(attacker, 1400, 338, (byte)1, (float)attackerSlidePos.X, (float)attackerSlidePos.Y, 800);
+			Send.EffectDelayed(target, 3500, 338, (byte)2);
+
+			// Item Update
+			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
+			bulletCount -= (short)skill.RankData.Var1; // 4 Bullets
+			attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
+			Send.ItemUpdate(attacker, attacker.RightHand);
+
+			return CombatSkillResult.Okay;
+		}
+
+		public void Complete(Creature creature, Skill skill, Packet packet)
+		{
+			Send.Effect(creature, 329, (byte)0);
+			Send.SkillComplete(creature, skill.Info.Id);
+		}
+
+		public void Cancel(Creature creature, Skill skill)
+		{
 		}
 
 		/// <summary>
@@ -226,20 +258,74 @@ namespace Aura.Channel.Skills.Guns
 			switch (attackerSkill.Info.Rank)
 			{
 				case SkillRank.RF:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					break;
 				case SkillRank.RE:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					break;
 				case SkillRank.RD:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					break;
 				case SkillRank.RC:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					break;
 				case SkillRank.RB:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					break;
 				case SkillRank.RA:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
 				case SkillRank.R9:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
 				case SkillRank.R8:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
 				case SkillRank.R7:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
 				case SkillRank.R6:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
 				case SkillRank.R5:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
 				case SkillRank.R4:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
 				case SkillRank.R3:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
 				case SkillRank.R2:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
 				case SkillRank.R1:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
 					break;
 			}
 		}

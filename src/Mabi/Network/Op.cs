@@ -588,7 +588,7 @@ namespace Aura.Mabi.Network
 			public const int ChatLeave = 0xC367;
 			public const int Chat = 0xC368;
 			public const int ChatR = 0xC36A;
-			public const int FriendDelete = 0xC36B;
+			public const int DeleteFriend = 0xC36B;
 			public const int ChatJoin = 0xC36C;
 			public const int GuildChat = 0xC36E;
 			public const int GuildChatR = 0xC36F;
@@ -597,6 +597,10 @@ namespace Aura.Mabi.Network
 			public const int ChangeOptionsR = 0xC371;
 			public const int FriendOptionChanged = 0xC372;
 			public const int GroupList = 0xC376;
+			public const int AddGroup = 0xC377;
+			public const int DeleteGroup = 0xC379;
+			public const int RenameGroup = 0xC37B;
+			public const int ChangeGroup = 0xC37D;
 			public const int SendNote = 0xC37E;
 			public const int SendNoteR = 0xC37F;
 

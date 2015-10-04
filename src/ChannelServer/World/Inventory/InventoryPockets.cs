@@ -163,7 +163,22 @@ namespace Aura.Channel.World.Inventory
 			if (collidingItems.Count > 0)
 				collidingItem = collidingItems[0];
 
-			if (collidingItem != null && ((collidingItem.Data.StackType == StackType.Sac && (collidingItem.Data.StackItem == newItem.Info.Id || collidingItem.Data.StackItem == newItem.Data.StackItem)) || (newItem.Data.StackType == StackType.Stackable && newItem.Info.Id == collidingItem.Info.Id)))
+			if (collidingItem != null && (
+				// Colliding item is sac and new item can fill be put into it
+				(collidingItem.Data.StackType == StackType.Sac && collidingItem.Data.StackItem != 0 && (collidingItem.Data.StackItem == newItem.Info.Id || collidingItem.Data.StackItem == newItem.Data.StackItem)) ||
+
+				// Colliding item is a quiver (general arrow sac) that
+				// a regular arrow can be put into.
+				// Corner case, due to quiver being a sac without stack item id,
+				// instead of a stackable for some reason. They possibly wanted
+				// to be able to put different kinds of arrows into it,
+				// otherwise they probably would have made it stackable or
+				// specified a stack item id.
+				(collidingItem.HasTag("/largearrowsac/") && newItem.HasTag("/arrow_bag_bundle/")) ||
+
+				// Item is stackable and can be put into the colliding stack
+				(newItem.Data.StackType == StackType.Stackable && newItem.Info.Id == collidingItem.Info.Id))
+			)
 			{
 				if (collidingItem.Info.Amount < collidingItem.Data.StackMax)
 				{
@@ -447,6 +462,11 @@ namespace Aura.Channel.World.Inventory
 						? _map[x, y]
 						: _map[_width - 1 - x, _height - 1 - y];
 
+					// Skip empty slots
+					if (item == null)
+						continue;
+
+					// Take item if it matches predicate
 					if (predicate(item))
 						return item;
 				}
@@ -470,6 +490,10 @@ namespace Aura.Channel.World.Inventory
 					var item = startAt == StartAt.TopLeft
 						? _map[x, y]
 						: _map[_width - 1 - x, _height - 1 - y];
+
+					// Skip empty slots
+					if (item == null)
+						continue;
 
 					// An item can occupy more than one spot on the map,
 					// make sure it's only added once.

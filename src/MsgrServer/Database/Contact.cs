@@ -8,6 +8,7 @@ namespace Aura.Msgr.Database
 	public abstract class Contact
 	{
 		public int Id { get; set; }
+		public string AccountId { get; set; }
 		public string Name { get; set; }
 		public string Server { get; set; }
 		public ContactStatus Status { get; set; }
@@ -18,7 +19,7 @@ namespace Aura.Msgr.Database
 		public Contact()
 		{
 			this.Nickname = "";
-			this.Status = ContactStatus.Online;
+			this.Status = ContactStatus.Offline;
 		}
 	}
 }

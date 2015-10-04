@@ -139,6 +139,7 @@ namespace Aura.Channel.Skills.Guns
 
 				var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
 				tAction.Set(TargetOptions.Result);
+				tAction.AttackerSkillId = skill.Info.Id; // Dual Gun Mastery
 
 				cap.Add(aAction, tAction);
 
@@ -237,8 +238,8 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="action"></param>
 		public void OnCreatureAttackedByPlayer(TargetAction action)
 		{
-			// Guns use Combat Mastery as TargetAction skill
-			if (action.SkillId != SkillId.CombatMastery)
+			// Guns use Combat Mastery as TargetAction skill, so check for AttackerAction skill
+			if (action.AttackerSkillId != SkillId.DualGunMastery)
 				return;
 
 			// Get skill

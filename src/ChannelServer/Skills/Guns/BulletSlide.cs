@@ -133,7 +133,7 @@ namespace Aura.Channel.Skills.Guns
 			}
 
 			// Check Range
-			var range = attacker.AttackRangeFor(target) + attacker.RightHand.Data.Range;
+			var range = attacker.AttackRangeFor(target) + 50;
 			if (!attacker.GetPosition().InRange(target.GetPosition(), range))
 			{
 				Send.Notice(attacker, Localization.Get("You are too far away."));
@@ -165,6 +165,7 @@ namespace Aura.Channel.Skills.Guns
 
 			var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
 			tAction.Set(TargetOptions.Result | TargetOptions.MultiHit);
+			tAction.AttackerSkillId = skill.Info.Id; // Bullet Slide
 			tAction.MultiHitDamageCount = 4;
 			tAction.MultiHitDamageShowTime = 134;
 			tAction.MultiHitUnk1 = 0;
@@ -275,8 +276,8 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="action"></param>
 		public void OnCreatureAttackedByPlayer(TargetAction action)
 		{
-			// Guns use Combat Mastery as TargetAction skill
-			if (action.SkillId != SkillId.CombatMastery)
+			// Guns use Combat Mastery as TargetAction skill, so check for AttackerAction skill
+			if (action.AttackerSkillId != SkillId.BulletSlide)
 				return;
 
 			// Get skill

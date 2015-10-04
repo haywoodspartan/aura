@@ -7,6 +7,7 @@ using Aura.Channel.Skills.Magic;
 using Aura.Channel.Skills.Combat;
 using Aura.Channel.World;
 using Aura.Channel.World.Entities;
+using Aura.Mabi;
 using Aura.Data.Database;
 using Aura.Mabi.Const;
 using Aura.Mabi.Network;
@@ -24,9 +25,9 @@ namespace Aura.Channel.Skills.Guns
 	/// Flash Launcher skill handler
 	/// </summary>
 	/// Bullet Use: 4
-	/// Var 1: Bullet Use
-	/// Var 2: Damage
-	/// Var 3: Damage added with Master Title (20%)
+	/// Var1: Bullet Use
+	/// Var2: Damage
+	/// Var3: Damage added with Master Title (20%)
 	[Skill(SkillId.FlashLauncher)]
 	public class FlashLauncher : ISkillHandler, IPreparable, IReadyable, ICombatSkill, ICompletable, ICancelable, IInitiableSkillHandler
 	{
@@ -139,7 +140,10 @@ namespace Aura.Channel.Skills.Guns
 			// Effects
 			Send.Effect(attacker, 329, (byte)1, (byte)1, 1400);
 
-			// Insert Condition Here
+			// Steadfast Condition
+			var extra = new MabiDictionary();
+			extra.SetBool("META_NODOWN_LOCK", true);
+			attacker.Conditions.Activate(ConditionsD.Steadfast, extra);
 
 			// Prepare combat actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
@@ -234,6 +238,7 @@ namespace Aura.Channel.Skills.Guns
 		public void Complete(Creature creature, Skill skill, Packet packet)
 		{
 			Send.Effect(creature, 329, (byte)0);
+			creature.Conditions.Deactivate(ConditionsD.Steadfast);
 			Send.SkillComplete(creature, skill.Info.Id);
 		}
 

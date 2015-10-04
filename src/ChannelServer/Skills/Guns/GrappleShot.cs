@@ -24,10 +24,10 @@ namespace Aura.Channel.Skills.Guns
 	/// Grapple Shot skill handler
 	/// </summary>
 	/// Bullet Use: 2
-	/// Var 1: Bullet Use
-	/// Var 2: Damage
-	/// Var 4: Max Range
-	/// Var 5: Min Range
+	/// Var1: Bullet Use
+	/// Var2: Damage
+	/// Var4: Max Range
+	/// Var5: Min Range
 	[Skill(SkillId.GrappleShot)]
 	public class GrappleShot : ISkillHandler, IPreparable, IReadyable, IUseable, ICancelable
 	{

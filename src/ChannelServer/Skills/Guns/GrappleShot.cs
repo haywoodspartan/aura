@@ -8,6 +8,7 @@ using Aura.Channel.Skills.Combat;
 using Aura.Channel.World;
 using Aura.Channel.World.Entities;
 using Aura.Data.Database;
+using Aura.Mabi;
 using Aura.Mabi.Const;
 using Aura.Mabi.Network;
 using Aura.Shared.Network;
@@ -116,7 +117,6 @@ namespace Aura.Channel.Skills.Guns
 			if (target == null)
 			{
 				Send.Notice(attacker, Localization.Get("Invalid Target"));
-				Send.SkillUseSilentCancel(attacker);
 				return;
 			}
 
@@ -132,7 +132,6 @@ namespace Aura.Channel.Skills.Guns
 				{
 					// You are too close
 					Send.Notice(attacker, Localization.Get("You are too close to the target."));
-					Send.SkillUseSilentCancel(attacker);
 					return;
 				}
 			}
@@ -166,11 +165,11 @@ namespace Aura.Channel.Skills.Guns
 
 			// Conditions
 			attacker.Conditions.Activate(ConditionsD.Steadfast);
-			var p = new Packet(Op.ConditionUpdate, attacker.EntityId); // Fast Move Condition - Needs extra packet entries
-			p.PutLong(0).PutLong(0).PutLong(0x0100000000000000).PutLong(0x0000000100000000).PutLong(0).PutLong(0).PutInt(1).PutInt(184);
-			p.PutString("CONDITION_FAST_MOVE_FACTOR: f:1.500000; CONDITION_FAST_MOVE_NO_LOCK: b: true;");
-			p.PutLong(0);
-			attacker.Region.Broadcast(p, attacker);
+
+			var extra = new MabiDictionary();
+			extra.SetFloat("CONDITION_FAST_MOVE_FACTOR", 1.500000f);
+			extra.SetBool("CONDITION_FAST_MOVE_NO_LOCK", true);
+			attacker.Conditions.Activate(ConditionsC.FastMove, extra);
 
 			// Move attacker to new position
 			Send.ForceRunTo(attacker, newAttackerPos);
@@ -181,9 +180,7 @@ namespace Aura.Channel.Skills.Guns
 
 			// Remove Conditions
 			attacker.Conditions.Deactivate(ConditionsD.Steadfast);
-			var p2 = new Packet(Op.ConditionUpdate, attacker.EntityId); // Fast Move Condition - Needs extra packet entries
-			p2.PutLong(0).PutLong(0).PutLong(0).PutLong(0).PutLong(0).PutLong(0).PutInt(0).PutLong(0);
-			attacker.Region.Broadcast(p2, attacker);
+			attacker.Conditions.Deactivate(ConditionsC.FastMove);
 
 			// Complete
 			Send.SkillComplete(attacker, skill.Info.Id);

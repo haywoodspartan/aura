@@ -238,6 +238,11 @@ namespace Aura.Mabi.Const
 		PlayerCharacter = 0x40,
 
 		/// <summary>
+		/// ??? (0x11)
+		/// </summary>
+		SkillActiveHit = TakeHit | SkillActive,
+
+		/// <summary>
 		/// Both hit at the same time (0x06)
 		/// </summary>
 		SimultaneousHit = Attacker | Unknown,

@@ -49,7 +49,7 @@ namespace Aura.Channel.Skills.Guns
 		/// <summary>
 		/// Distance target gets knocked back
 		/// </summary>
-		private const int KnockbackDistance = 300;
+		private const int KnockbackDistance = 300; // Unofficial
 
 		/// <summary>
 		/// Target's stability reduction
@@ -80,6 +80,7 @@ namespace Aura.Channel.Skills.Guns
 			if (bulletCount < skill.RankData.Var1)
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
+			creature.StopMove();
 			Send.UseMotion(creature, 131, 5, true, false);
 			Send.Effect(creature, Effect.SkillInit, "flashing");
 			Send.SkillPrepare(creature, skill.Info.Id, skill.GetCastTime());
@@ -115,27 +116,25 @@ namespace Aura.Channel.Skills.Guns
 			var targetAreaLoc = new Location(targetAreaId);
 			var targetAreaPos = new Position(targetAreaLoc.X, targetAreaLoc.Y);
 
+			var attackerPos = attacker.GetPosition();
+
 			// Distance (Length) & Range (Radius)
-			var distance = skill.RankData.Var6;
+			var distance = attackerPos.GetDistance(targetAreaPos);
+			var maxDistance = skill.RankData.Var6;
 			var range = skill.RankData.Var5;
 			range = range / 2;
 
 			attacker.StopMove();
-			var attackerPos = attacker.GetPosition();
 
 			// Check Range
-			if (!targetAreaPos.InRange(attackerPos, (int)distance))
+			if (!targetAreaPos.InRange(attackerPos, (int)maxDistance))
 			{
-				Send.Notice(attacker, Localization.Get("Invalid Target"));
+				Send.Notice(attacker, Localization.Get("You are too far away."));
+				Send.SkillUseSilentCancel(attacker);
 				return;
 			}
 
 			var newAttackerPos = attackerPos.GetRelative(targetAreaPos, (int)distance);
-
-			// TurnTo
-			float deltaX = targetAreaPos.X - attackerPos.X;
-			float deltaY = targetAreaPos.Y - attackerPos.Y;
-			Send.TurnTo(attacker, deltaX, deltaY);
 
 			var unkPacket3 = new Packet(0x7534, attacker.EntityId);
 			unkPacket3.PutByte(0).PutByte(0).PutByte(0);
@@ -165,14 +164,15 @@ namespace Aura.Channel.Skills.Guns
 			var pointDist = Math.Sqrt((distance * distance) + (range * range)); // Pythagorean Theorem - Distance between point and opposite side's center.
 			var p1PosTemp = attackerPos.GetRelative(newAttackerPos, (int)pointDist);
 			var p1PointTemp = new Point(p1PosTemp.X, p1PosTemp.Y);
-			var p1 = this.RotatePoint(p1PointTemp, attackerPoint, (Math.PI / 6)); // Rotate 30 Degrees
-			var p2 = this.RotatePoint(p1PointTemp, attackerPoint, -(Math.PI / 6)); // Rotate -30 Degrees
+			var rotationAngle = Math.Asin(range / pointDist);
+			var p1 = this.RotatePoint(p1PointTemp, attackerPoint, rotationAngle); // Rotate Positive - moves point to position where distance from newAttackerPos is range and Distance from attackerPos is pointDist.
+			var p2 = this.RotatePoint(p1PointTemp, attackerPoint, (rotationAngle * -1)); // Rotate Negative - moves point to opposite side of p1
 
 			// Calculate Points 3 & 4
 			var p2PosTemp = newAttackerPos.GetRelative(attackerPos, (int)pointDist);
 			var p2PointTemp = new Point(p2PosTemp.X, p2PosTemp.Y);
-			var p3 = this.RotatePoint(p2PointTemp, newAttackerPoint, (Math.PI / 6)); // Rotate 30 Degrees
-			var p4 = this.RotatePoint(p2PointTemp, newAttackerPoint, -(Math.PI / 6)); // Rotate -30 Degrees
+			var p3 = this.RotatePoint(p2PointTemp, newAttackerPoint, rotationAngle); // Rotate Positive
+			var p4 = this.RotatePoint(p2PointTemp, newAttackerPoint, (rotationAngle * -1)); // Rotate Negative
 
 			// Prepare Combat Actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
@@ -187,7 +187,7 @@ namespace Aura.Channel.Skills.Guns
 			var unkPacket4 = new Packet(Op.Effect, attacker.EntityId);
 			unkPacket4.PutInt(339).PutShort((short)skill.Info.Id).PutInt(0).PutShort(2);
 
-			var bulletTime = 65;
+			var bulletTime = 3850; // Unofficial
 
 			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4);
 			foreach (var target in targets.Where(cr => !cr.IsDead && !cr.Has(CreatureStates.NamedNpc) && cr != attacker))
@@ -258,7 +258,7 @@ namespace Aura.Channel.Skills.Guns
 				Send.Effect(target, 298, (byte)0);
 				Send.Effect(target, 298, (byte)0);
 
-				bulletTime *= 2;
+				bulletTime /= 7;
 
 				unkPacket4.PutInt(bulletTime).PutLong(target.EntityId);
 			}
@@ -271,7 +271,7 @@ namespace Aura.Channel.Skills.Guns
 
 			Send.SkillUse(attacker, skill.Info.Id, targetAreaId, 0, 1);
 			skill.Stacks = 0;
-			attacker.Region.Broadcast(unkPacket4);
+			attacker.Region.Broadcast(unkPacket4, attacker);
 
 			// Item Update
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);

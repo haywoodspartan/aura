@@ -117,6 +117,7 @@ namespace Aura.Channel.Skills.Guns
 			if (target == null)
 			{
 				Send.Notice(attacker, Localization.Get("Invalid Target"));
+				Send.SkillUseSilentCancel(attacker);
 				return;
 			}
 
@@ -132,6 +133,7 @@ namespace Aura.Channel.Skills.Guns
 				{
 					// You are too close
 					Send.Notice(attacker, Localization.Get("You are too close to the target."));
+					Send.SkillUseSilentCancel(attacker);
 					return;
 				}
 			}

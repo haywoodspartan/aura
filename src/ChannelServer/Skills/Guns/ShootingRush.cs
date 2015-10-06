@@ -190,7 +190,7 @@ namespace Aura.Channel.Skills.Guns
 			var bulletTime = 3850; // Unofficial
 
 			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4);
-			foreach (var target in targets.Where(cr => !cr.IsDead && !cr.Has(CreatureStates.NamedNpc) && cr != attacker))
+			foreach (var target in targets.Where(cr => !cr.IsDead && attacker.CanTarget(cr)))
 			{
 				var tAction = new TargetAction(CombatActionType.SkillActiveHit, target, attacker, SkillId.None);
 				tAction.Set(TargetOptions.Result | TargetOptions.MultiHit);

@@ -118,26 +118,23 @@ namespace Aura.Channel.Skills.Guns
 
 			var attackerPos = attacker.GetPosition();
 
-			// Distance (Length) & Radius (Width)
-			var distance = skill.RankData.Var6 / 2;
-			var radius = skill.RankData.Var5 / 2;
+			// Distance (Length) & Range (Radius)
+			var distance = attackerPos.GetDistance(targetAreaPos);
+			var maxDistance = skill.RankData.Var6;
+			var range = skill.RankData.Var5;
+			range = range / 2;
 
 			attacker.StopMove();
 
-			var relativeDistance = attackerPos.GetDistance(targetAreaPos);
-
-			Position newAttackerPos = new Position(0, 0);
-
-			// New Attacker position based on skill distance.
-			if (relativeDistance < distance) // Add distance if distance to targetArea is too short.
+			// Check Range
+			if (!targetAreaPos.InRange(attackerPos, (int)maxDistance))
 			{
-				var extraDistance = distance - relativeDistance;
-				newAttackerPos = attackerPos.GetRelative(targetAreaPos, (int)extraDistance);
+				Send.Notice(attacker, Localization.Get("You are too far away."));
+				Send.SkillUseSilentCancel(attacker);
+				return;
 			}
-			else if (relativeDistance > distance) // Go between if distance to targetArea is too long.
-			{
-				newAttackerPos = attackerPos.GetRelative(targetAreaPos, ((int)distance * -1));
-			}
+
+			var newAttackerPos = attackerPos.GetRelative(targetAreaPos, (int)distance);
 
 			var unkPacket3 = new Packet(0x7534, attacker.EntityId);
 			unkPacket3.PutByte(0).PutByte(0).PutByte(0);
@@ -156,7 +153,7 @@ namespace Aura.Channel.Skills.Guns
 			attacker.Conditions.Activate(ConditionsD.Steadfast);
 			Send.Effect(attacker, 340, (byte)1, (float)newAttackerPos.X, (float)newAttackerPos.Y, (float)distance, 1599);
 
-			// Set creature position to new position.
+			// Since the effect doesn't do it...
 			attacker.SetPosition(newAttackerPos.X, newAttackerPos.Y);
 
 			// Center Points Calculation
@@ -164,10 +161,10 @@ namespace Aura.Channel.Skills.Guns
 			var newAttackerPoint = new Point(newAttackerPos.X, newAttackerPos.Y);
 
 			// Calculate Points 1 & 2
-			var pointDist = Math.Sqrt((distance * distance) + (radius * radius)); // Pythagorean Theorem - Distance between point and opposite side's center.
+			var pointDist = Math.Sqrt((distance * distance) + (range * range)); // Pythagorean Theorem - Distance between point and opposite side's center.
 			var p1PosTemp = attackerPos.GetRelative(newAttackerPos, (int)pointDist);
 			var p1PointTemp = new Point(p1PosTemp.X, p1PosTemp.Y);
-			var rotationAngle = Math.Asin(radius / pointDist);
+			var rotationAngle = Math.Asin(range / pointDist);
 			var p1 = this.RotatePoint(p1PointTemp, attackerPoint, rotationAngle); // Rotate Positive - moves point to position where distance from newAttackerPos is range and Distance from attackerPos is pointDist.
 			var p2 = this.RotatePoint(p1PointTemp, attackerPoint, (rotationAngle * -1)); // Rotate Negative - moves point to opposite side of p1
 

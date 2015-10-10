@@ -119,7 +119,7 @@ namespace Aura.Channel.Skills.Guns
 			var attackerPos = attacker.GetPosition();
 
 			// Distance (Length) & Radius (Width)
-			var distance = skill.RankData.Var6 / 2;
+			var distance = skill.RankData.Var6;
 			var radius = skill.RankData.Var5 / 2;
 
 			attacker.StopMove();
@@ -136,7 +136,8 @@ namespace Aura.Channel.Skills.Guns
 			}
 			else if (relativeDistance > distance) // Go between if distance to targetArea is too long.
 			{
-				newAttackerPos = attackerPos.GetRelative(targetAreaPos, ((int)distance * -1));
+				var extraDistance = relativeDistance - distance;
+				newAttackerPos = attackerPos.GetRelative(targetAreaPos, ((int)extraDistance * -1));
 			}
 
 			var unkPacket3 = new Packet(0x7534, attacker.EntityId);

@@ -221,11 +221,15 @@ namespace Aura.Channel.Skills.Guns
 			// Mana Shield
 			ManaShield.Handle(target, ref damage, tAction);
 
-			// Apply Damage
-			target.TakeDamage(tAction.Damage = damage, attacker);
+			// Targets can be friendly entities as well.
+			if (attacker.CanTarget(target))
+			{
+				// Apply Damage
+				target.TakeDamage(tAction.Damage = damage, attacker);
 
-			// Aggro
-			target.Aggro(attacker);
+				// Aggro
+				target.Aggro(attacker);
+			}
 
 			// Stun Times
 			tAction.Stun = TargetStun;
@@ -262,7 +266,10 @@ namespace Aura.Channel.Skills.Guns
 				tAction.Creature.Stun = tAction.Stun;
 			}
 			aAction.Creature.Stun = aAction.Stun;
-			cap.Handle();
+
+			// No cap effects if friendly entity.
+			if (attacker.CanTarget(target))
+				cap.Handle();
 
 			// Item Update
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);

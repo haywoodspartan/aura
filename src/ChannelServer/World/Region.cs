@@ -55,7 +55,7 @@ namespace Aura.Channel.World
 		/// <summary>
 		/// Region Tag, can be used for various things.
 		/// </summary>
-		public string Tag { get; protected set; }
+		public string Tag { get; set; }
 
 		/// <summary>
 		/// Manager for blocking objects in the region.

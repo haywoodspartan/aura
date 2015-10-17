@@ -198,6 +198,9 @@ namespace Aura.Channel.World.Entities
 		/// <returns></returns>
 		public override bool CanTarget(Creature creature)
 		{
+			if (creature.Region.Tag == "PvP")
+				return true;
+
 			if (!base.CanTarget(creature))
 				return false;
 

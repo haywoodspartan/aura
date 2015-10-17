@@ -16,6 +16,7 @@ namespace Aura.Data.Database
 
 		public string Name { get; set; }
 		public string KorName { get; set; }
+		public string TextDesc1 {get; set; }
 
 		public ItemType Type { get; set; }
 

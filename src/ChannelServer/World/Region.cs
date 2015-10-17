@@ -53,6 +53,11 @@ namespace Aura.Channel.World
 		public int Id { get; protected set; }
 
 		/// <summary>
+		/// Region Tag, can be used for various things.
+		/// </summary>
+		public string Tag { get; protected set; }
+
+		/// <summary>
 		/// Manager for blocking objects in the region.
 		/// </summary>
 		public RegionCollision Collisions { get; protected set; }

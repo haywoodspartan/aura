@@ -10,6 +10,7 @@ using Aura.Shared.Util;
 using Aura.Mabi.Const;
 using System.Threading;
 using Aura.Mabi;
+using Aura.Channel.Network.Sending;
 
 namespace Aura.Channel.World.Dungeons.Puzzles
 {
@@ -94,12 +95,41 @@ namespace Aura.Channel.World.Dungeons.Puzzles
 
 			var region = this.Puzzle.Region;
 			var worldPos = this.Place.GetWorldPosition();
+			var dungeon = this.Puzzle.Dungeon;
 
 			foreach (var monster in _monsters)
 			{
 				var pos = this.Place.GetPosition(_spawnPosition);
 				monster.Direction = MabiMath.DegreeToByte(pos[2]);
 				monster.Spawn(region.Id, pos[0], pos[1]);
+
+				// Stat Mods With Pass
+				var itemMeta = dungeon.DungeonItem.MetaData1;
+				if (itemMeta.Has("Health"))
+				{
+					monster.StatMods.Add(Stat.LifeMaxMod, (monster.Life * (itemMeta.GetShort("Health") / 100)), Entities.Creatures.StatModSource.Skill, 100000);
+					monster.FullLifeHeal();
+				}
+				if (itemMeta.Has("Defense"))
+				{
+					monster.StatMods.Add(Stat.DefenseMod, (monster.Defense * (itemMeta.GetShort("Defense") / 100)), Entities.Creatures.StatModSource.Skill, 100000);
+				}
+				if (itemMeta.Has("Protection"))
+				{
+					monster.StatMods.Add(Stat.ProtectionMod, itemMeta.GetShort("Protection"), Entities.Creatures.StatModSource.Skill, 100000); // Value is already calculated in Percentage
+				}
+				if (itemMeta.Has("Attack"))
+				{
+					monster.StatMods.Add(Stat.StrMod, (monster.Str * (itemMeta.GetShort("Attack") / 100)), Entities.Creatures.StatModSource.Skill, 100000);
+					monster.StatMods.Add(Stat.IntMod, (monster.Int * (itemMeta.GetShort("Attack") / 100)), Entities.Creatures.StatModSource.Skill, 100000);
+					monster.StatMods.Add(Stat.DexMod, (monster.Dex * (itemMeta.GetShort("Attack") / 100)), Entities.Creatures.StatModSource.Skill, 100000);
+					monster.StatMods.Add(Stat.LuckMod, (monster.Luck * (itemMeta.GetShort("Attack") / 100)), Entities.Creatures.StatModSource.Skill, 100000);
+					monster.StatMods.Add(Stat.WillMod, (monster.Will * (itemMeta.GetShort("Attack") / 100)), Entities.Creatures.StatModSource.Skill, 100000);
+					monster.StatMods.Add(Stat.AttackMinMod, (monster.AttackMinBase * (itemMeta.GetShort("Attack") / 100)), Entities.Creatures.StatModSource.Skill, 100000);
+					monster.StatMods.Add(Stat.AttackMaxMod, (monster.AttackMaxBase * (itemMeta.GetShort("Attack") / 100)), Entities.Creatures.StatModSource.Skill, 100000);
+				}
+
+				Send.StatUpdateDefault(monster); // Apply Stat Mods
 
 				if (monster.AI != null)
 					monster.AI.Activate(1000);

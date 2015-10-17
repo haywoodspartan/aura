@@ -141,6 +141,51 @@ namespace Aura.Channel.World.Dungeons
 		}
 
 		/// <summary>
+		/// Generates instance id and creates dungeon.
+		/// Uses Item instead of itemId for MetaData gathering of passes.
+		/// </summary>
+		/// <param name="dungeonName"></param>
+		/// <param name="itemId"></param>
+		/// <param name="creature"></param>
+		/// <returns></returns>
+		private Dungeon CreateDungeon(string dungeonName, Item item, Creature creature)
+		{
+			Dungeon dungeon;
+			long instanceId = 0;
+			var itemId = item.Info.Id;
+			var rnd = RandomProvider.Get();
+			var itemData = AuraData.ItemDb.Find(itemId);
+
+			// Create new dungeon for passes (includes quest items)
+			if (itemData != null && itemData.HasTag("/dungeon_pass/"))
+			{
+				instanceId = this.GetInstanceId();
+				dungeon = new Dungeon(instanceId, dungeonName, itemId, rnd.Next(), rnd.Next(), creature, item);
+			}
+			else
+			{
+				// Create new dungeon if there's not one yet
+				var existing = this.Get(a => a.Name == dungeonName && a.ItemId == itemId);
+				if (existing == null || ChannelServer.Instance.Conf.World.PrivateDungeons)
+				{
+					instanceId = this.GetInstanceId();
+					dungeon = new Dungeon(instanceId, dungeonName, itemId, rnd.Next(), rnd.Next(), creature);
+				}
+				else
+					dungeon = existing;
+			}
+
+			// Add new dungeon to list
+			if (instanceId != 0)
+			{
+				lock (_syncLock)
+					_dungeons.Add(instanceId, dungeon);
+			}
+
+			return dungeon;
+		}
+
+		/// <summary>
 		/// Removes dungeon with given instance id, incl all regions.
 		/// </summary>
 		/// <param name="instanceId"></param>
@@ -276,7 +321,10 @@ namespace Aura.Channel.World.Dungeons
 				return false;
 			}
 
-			return this.CreateDungeonAndWarp(dungeonName, item.Info.Id, creature);
+			if (item.MetaData1 != null)
+				return this.CreateDungeonAndWarp(dungeonName, item, creature);
+			else
+				return this.CreateDungeonAndWarp(dungeonName, item.Info.Id, creature);
 		}
 
 		/// <summary>
@@ -294,6 +342,44 @@ namespace Aura.Channel.World.Dungeons
 				try
 				{
 					var dungeon = this.CreateDungeon(dungeonName, itemId, creature);
+					var regionId = dungeon.Regions.First().Id;
+
+					// Original creature is always a member of the dungeon party.
+					foreach (var member in dungeon.Party)
+					{
+						var pos = member.GetPosition();
+						member.Warp(regionId, pos);
+
+						// TODO: This is a bit hacky, needs to be moved to Creature.Warp, with an appropriate check.
+						Send.EntitiesDisappear(member.Client, dungeon.Party);
+					}
+
+					return true;
+				}
+				catch (Exception ex)
+				{
+					Log.Exception(ex, "Failed to create and warp to dungeon.");
+					return false;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Creates a dungeon with the given parameters and warps the creature's
+		/// party inside.
+		/// Uses item instead of itemId for MetaData gathering of passes.
+		/// </summary>
+		/// <param name="dungeonName"></param>
+		/// <param name="itemId"></param>
+		/// <param name="creature"></param>
+		/// <returns></returns>
+		public bool CreateDungeonAndWarp(string dungeonName, Item item, Creature creature)
+		{
+			lock (_createAndCleanUpLock)
+			{
+				try
+				{
+					var dungeon = this.CreateDungeon(dungeonName, item, creature);
 					var regionId = dungeon.Regions.First().Id;
 
 					// Original creature is always a member of the dungeon party.

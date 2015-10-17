@@ -59,6 +59,11 @@ namespace Aura.Channel.World.Dungeons
 		public int ItemId { get; private set; }
 
 		/// <summary>
+		/// Item used to enter the dungeon
+		/// </summary>
+		public Item DungeonItem { get; private set; }
+
+		/// <summary>
 		/// The seed used to create the puzzles in this dungeon.
 		/// </summary>
 		public int Seed { get; private set; }
@@ -145,6 +150,62 @@ namespace Aura.Channel.World.Dungeons
 			this.InstanceId = instanceId;
 			this.Name = dungeonName;
 			this.ItemId = itemId;
+			this.DungeonItem = null;
+			this.Seed = seed;
+			this.FloorPlan = floorPlan;
+			this.Options = XElement.Parse("<option />");
+
+			this.Party = new List<Creature>(); // = creature.Party; || = party;
+			this.Party.Add(creature);
+			this.PartyLeader = creature;
+
+			if (creature.IsInParty)
+			{
+				// Only creatures who actually ENTER the dungeon at creation are considered "dungeon founders".
+				this.Party.AddRange(creature.Party.OnAltar());
+			}
+
+			// Get script
+			this.Script = ChannelServer.Instance.ScriptManager.DungeonScripts.Get(this.Name);
+			if (this.Script == null)
+				Log.Warning("Dungeon: No script found for '{0}'.", this.Name);
+
+			// Generate floors
+			this.Generator = new DungeonGenerator(this.Name, this.ItemId, this.Seed, this.FloorPlan, this.Options.ToString());
+
+			// Prepare puzzles
+			for (int iFloor = 0; iFloor < this.Generator.Floors.Count; ++iFloor)
+				this.GeneratePuzzles(iFloor);
+
+			this.GenerateRegions();
+		}
+
+		/// <summary>
+		/// Creates new dungeon.
+		/// </summary>
+		/// <param name="instanceId"></param>
+		/// <param name="dungeonName"></param>
+		/// <param name="itemId"></param>
+		/// <param name="seed"></param>
+		/// <param name="floorPlan"></param>
+		/// <param name="creature"></param>
+		public Dungeon(long instanceId, string dungeonName, int itemId, int seed, int floorPlan, Creature creature, Item item)
+		{
+			dungeonName = dungeonName.ToLower();
+
+			// Get data
+			this.Data = AuraData.DungeonDb.Find(dungeonName);
+			if (this.Data == null)
+				throw new ArgumentException("Dungeon '" + dungeonName + "' doesn't exist.");
+
+			_treasureChests = new List<TreasureChest>();
+			_treasurePlacementProvider = new PlacementProvider(Placement.Treasure8, 750);
+			this.Regions = new List<DungeonRegion>();
+
+			this.InstanceId = instanceId;
+			this.Name = dungeonName;
+			this.ItemId = itemId;
+			this.DungeonItem = item;
 			this.Seed = seed;
 			this.FloorPlan = floorPlan;
 			this.Options = XElement.Parse("<option />");

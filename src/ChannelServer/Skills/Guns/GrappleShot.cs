@@ -78,7 +78,7 @@ namespace Aura.Channel.Skills.Guns
 
 			// Check Bullet Count
 			var bulletCount = creature.RightHand.MetaData1.GetShort(BulletCountTag);
-			if (bulletCount < skill.RankData.Var1)
+			if (bulletCount < skill.RankData.Var1 && !creature.Conditions.Has(ConditionsD.WayOfTheGun))
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
 			Send.SkillPrepare(creature, skill.Info.Id, skill.GetCastTime());

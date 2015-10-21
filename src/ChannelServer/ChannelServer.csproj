@@ -179,6 +179,7 @@
     <Compile Include="Skills\Guns\GrappleShot.cs" />
     <Compile Include="Skills\Guns\Reload.cs" />
     <Compile Include="Skills\Guns\ShootingRush.cs" />
+    <Compile Include="Skills\Guns\WayOfTheGun.cs" />
     <Compile Include="Skills\Hidden\BigBlessingWaterKit.cs" />
     <Compile Include="Skills\Hidden\Blessing.cs" />
     <Compile Include="Skills\Hidden\Dye.cs" />

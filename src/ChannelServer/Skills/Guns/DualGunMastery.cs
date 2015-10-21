@@ -82,7 +82,7 @@ namespace Aura.Channel.Skills.Guns
 
 			// Check Bullet Count
 			var bulletCount = creature.RightHand.MetaData1.GetShort(BulletCountTag);
-			if (bulletCount < skill.RankData.Var1)
+			if (bulletCount < skill.RankData.Var1 && !creature.Conditions.Has(ConditionsD.WayOfTheGun))
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
 			Send.SkillUseEntity(creature, skill.Info.Id, targetEntityId);
@@ -149,6 +149,11 @@ namespace Aura.Channel.Skills.Guns
 				// Critical Hit
 				var critChance = attacker.GetRightCritChance(target.Protection);
 				critChance += skill.RankData.Var6; // Not sure how to add Var 6 yet...
+
+				// Way Of The Gun
+				if (attacker.Conditions.Has(ConditionsD.WayOfTheGun))
+					critChance = 100;
+
 				CriticalHit.Handle(attacker, critChance, ref damage, tAction);
 
 				// Subtract damage in respect to target's def/prot

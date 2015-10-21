@@ -128,9 +128,8 @@ namespace Aura.Channel.World
 				{
 					var add = new Prop(prop.EntityId, prop.Id, this.Id, (int)prop.X, (int)prop.Y, prop.Direction, prop.Scale, 0, "", "", "");
 
-					// Add copy of extensions
-					foreach (var para in prop.Parameters)
-						add.Extensions.AddSilent(new PropExtension(para.SignalType, para.EventType, para.Name, 0));
+					// Save parameters for use by dungeons
+					add.Parameters = prop.Parameters.ToList();
 
 					// Add drop behaviour if drop type exists
 					var dropType = prop.GetDropType();
@@ -451,7 +450,6 @@ namespace Aura.Channel.World
 			}
 
 			creature.Region = this;
-			ChannelServer.Instance.Events.OnPlayerEntersRegion(creature);
 
 			// Save reference to client if it's mainly controlling this creature.
 			if (creature.Client.Controlling == creature)
@@ -471,6 +469,9 @@ namespace Aura.Channel.World
 
 			//if (creature.EntityId < MabiId.Npcs)
 			//	Log.Status("Creatures currently in region {0}: {1}", this.Id, _creatures.Count);
+
+			if (creature.IsPlayer)
+				ChannelServer.Instance.Events.OnPlayerEntersRegion(creature);
 		}
 
 		/// <summary>

@@ -64,6 +64,10 @@ namespace Aura.Channel.Skills.Guns
 				Send.ItemUpdate(creature, creature.RightHand);
 			}
 
+			// Set Gun Ammo to 0
+			creature.RightHand.MetaData1.SetShort(BulletCountTag, 0);
+			Send.ItemUpdate(creature, creature.RightHand);
+
 			// Activate WOTG Condition
 			creature.Conditions.Activate(ConditionsD.WayOfTheGun);
 
@@ -81,12 +85,11 @@ namespace Aura.Channel.Skills.Guns
 			t = new Timer(_ =>
 			{
 				GC.KeepAlive(t);
-				creature.Conditions.Deactivate(ConditionsD.WayOfTheGun);
-				Send.MotionCancel2(creature, 0);
-
-				// Set Gun Ammo to 0
-				creature.RightHand.MetaData1.SetShort(BulletCountTag, 0);
-				Send.ItemUpdate(creature, creature.RightHand);
+				if (creature.Conditions.Has(ConditionsD.WayOfTheGun))
+				{
+					creature.Conditions.Deactivate(ConditionsD.WayOfTheGun);
+					Send.MotionCancel2(creature, 0);
+				}
 			}, null, (int)skill.RankData.Var1, Timeout.Infinite);
 
 			return true;

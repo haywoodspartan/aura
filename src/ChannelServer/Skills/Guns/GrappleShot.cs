@@ -187,10 +187,6 @@ namespace Aura.Channel.Skills.Guns
 			// Complete
 			Send.SkillComplete(attacker, skill.Info.Id);
 
-			// Effects to target
-			Send.Effect(target, 298, (byte)0);
-			Send.Effect(target, 298, (byte)0);
-
 			// Prepare Combat Actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
 
@@ -271,11 +267,14 @@ namespace Aura.Channel.Skills.Guns
 			if (attacker.CanTarget(target))
 				cap.Handle();
 
-			// Item Update
-			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
-			bulletCount -= (short)skill.RankData.Var1; // 2 Bullets
-			attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
-			Send.ItemUpdate(attacker, attacker.RightHand);
+			// Item Update excluding Way Of The Gun
+			if (!attacker.Conditions.Has(ConditionsD.WayOfTheGun))
+			{
+				var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
+				bulletCount -= (short)skill.RankData.Var1; // 2 Bullets
+				attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
+				Send.ItemUpdate(attacker, attacker.RightHand);
+			}
 		}
 
 		/// <summary>

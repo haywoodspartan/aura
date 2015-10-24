@@ -58,6 +58,7 @@ namespace Aura.Channel.Skills.Guns
 			if (creature.RightHand == null)
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
+			// Reload isn't allowed with Way Of The Gun
 			if (creature.Conditions.Has(ConditionsD.WayOfTheGun))
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 

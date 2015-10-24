@@ -220,17 +220,18 @@ namespace Aura.Channel.Skills.Guns
 			var attackerSlidePos = attacker.GetPosition().GetRelative(targetPos, SlideDistance);
 
 			// Effects
-			Send.Effect(target, 298, (byte)0);
-			Send.Effect(target, 298, (byte)0);
 			Send.EffectDelayed(target, 400, 338, (byte)0, (float)targetPos.X, (float)targetPos.Y, 400, 1000);
 			Send.EffectDelayed(attacker, 1400, 338, (byte)1, (float)attackerSlidePos.X, (float)attackerSlidePos.Y, 800);
 			Send.EffectDelayed(target, 3500, 338, (byte)2);
 
-			// Item Update
-			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
-			bulletCount -= (short)skill.RankData.Var1; // 4 Bullets
-			attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
-			Send.ItemUpdate(attacker, attacker.RightHand);
+			// Item Update excluding Way Of The Gun
+			if (!attacker.Conditions.Has(ConditionsD.WayOfTheGun))
+			{
+				var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
+				bulletCount -= (short)skill.RankData.Var1; // 4 Bullets
+				attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
+				Send.ItemUpdate(attacker, attacker.RightHand);
+			}
 
 			return CombatSkillResult.Okay;
 		}

@@ -234,15 +234,14 @@ namespace Aura.Channel.Skills.Guns
 			aAction.Creature.Stun = aAction.Stun;
 			cap.Handle();
 
-			// Effects to target
-			Send.Effect(target, 298, (byte)0);
-			Send.Effect(target, 298, (byte)0);
-
-			// Item Update
-			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
-			bulletCount -= (short)skill.RankData.Var1; // 4 Bullets
-			attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
-			Send.ItemUpdate(attacker, attacker.RightHand);
+			// Item Update excluding Way Of The Gun
+			if (!attacker.Conditions.Has(ConditionsD.WayOfTheGun))
+			{
+				var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
+				bulletCount -= (short)skill.RankData.Var1; // 4 Bullets
+				attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
+				Send.ItemUpdate(attacker, attacker.RightHand);
+			}
 
 			skill.Stacks = 0;
 

@@ -259,9 +259,6 @@ namespace Aura.Channel.Skills.Guns
 					tAction.Creature.Stun = tAction.Stun;
 				}
 
-				Send.Effect(target, 298, (byte)0);
-				Send.Effect(target, 298, (byte)0);
-
 				bulletTime /= 7;
 
 				unkPacket4.PutInt(bulletTime).PutLong(target.EntityId);
@@ -277,11 +274,14 @@ namespace Aura.Channel.Skills.Guns
 			skill.Stacks = 0;
 			attacker.Region.Broadcast(unkPacket4, attacker);
 
-			// Item Update
-			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
-			bulletCount -= (short)skill.RankData.Var1; // 8 Bullets
-			attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
-			Send.ItemUpdate(attacker, attacker.RightHand);
+			// Item Update excluding Way Of The Gun
+			if (!attacker.Conditions.Has(ConditionsD.WayOfTheGun))
+			{
+				var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
+				bulletCount -= (short)skill.RankData.Var1; // 8 Bullets
+				attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
+				Send.ItemUpdate(attacker, attacker.RightHand);
+			}
 		}
 
 		/// <summary>

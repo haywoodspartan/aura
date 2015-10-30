@@ -135,6 +135,7 @@
     <Compile Include="Network\Sending\Send.Rebirth.cs" />
     <Compile Include="Network\Sending\Send.Vehicles.cs" />
     <Compile Include="Network\Sending\Send.Weather.cs" />
+    <Compile Include="Network\Sending\Send.Echo.cs" />
     <Compile Include="Network\Sending\Send.World.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -156,6 +157,7 @@
     <Compile Include="Skills\Actions\ContinentWarp.cs" />
     <Compile Include="Skills\Actions\OutfitAction.cs" />
     <Compile Include="Skills\Base\CombatSkillHandler.cs" />
+    <Compile Include="Skills\Base\Creation.cs" />
     <Compile Include="Skills\Base\Production.cs" />
     <Compile Include="Skills\Base\Interfaces.cs" />
     <Compile Include="Skills\Base\StandardPrepareHandler.cs" />
@@ -188,12 +190,14 @@
     <Compile Include="Skills\Hidden\UseItemChattingColorChange.cs" />
     <Compile Include="Skills\Hidden\NameColorChange.cs" />
     <Compile Include="Skills\Hidden\Milling.cs" />
+    <Compile Include="Skills\Life\Blacksmithing.cs" />
     <Compile Include="Skills\Life\Campfire.cs" />
     <Compile Include="Skills\Life\FirstAid.cs" />
     <Compile Include="Skills\Life\Fishing.cs" />
     <Compile Include="Skills\Life\Gathering.cs" />
     <Compile Include="Skills\Life\PotionMaking.cs" />
     <Compile Include="Skills\Life\Refining.cs" />
+    <Compile Include="Skills\Life\Tailoring.cs" />
     <Compile Include="Skills\Life\Weaving.cs" />
     <Compile Include="Skills\Life\Handicraft.cs" />
     <Compile Include="Skills\Life\Herbalism.cs" />
@@ -277,6 +281,7 @@
     <Compile Include="World\Entities\Props\PropExtension.cs" />
     <Compile Include="World\Entities\Props\PropExtensionManager.cs" />
     <Compile Include="World\EventManager.cs" />
+    <Compile Include="World\HitTracker.cs" />
     <Compile Include="World\Inventory\BankInventory.cs" />
     <Compile Include="World\Inventory\CreatureInventory.cs" />
     <Compile Include="World\Inventory\InventoryPockets.cs" />

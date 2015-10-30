@@ -873,6 +873,10 @@ namespace Aura.Channel.Network.Sending
 		/// Sends ProductionSuccessRequestR to creature's client, informing it
 		/// about the success rate it requested.
 		/// </summary>
+		/// <remarks>
+		/// This version of the packet is used for "normal" Production,
+		/// like Weaving and Handicraft.
+		/// </remarks>
 		/// <param name="creature"></param>
 		/// <param name="skillId">Skill the rate is used for.</param>
 		/// <param name="successRate">
@@ -895,6 +899,136 @@ namespace Aura.Channel.Network.Sending
 			gp.PutByte(totalSuccess);
 
 			creature.Client.Send(gp);
+		}
+
+		/// <summary>
+		/// Sends ProductionSuccessRequestR to creature's client, informing it
+		/// about the success rate it requested.
+		/// </summary>
+		/// <remarks>
+		/// This version of the packet is used for Tailoring and Blacksmithing.
+		/// </remarks>
+		/// <param name="creature"></param>
+		/// <param name="skillId">Skill the rate is used for.</param>
+		/// <param name="successRate">
+		/// Bonus success rate, added to the value calculated by the client,
+		/// or the total success rate to use, if totalSuccess is true.
+		/// </param>
+		/// <param name="totalSuccess">
+		/// If true, the client will display the given successRate, if it's false,
+		/// it will calculate the default rate itself and add successRate as bonus.
+		/// </param>
+		public static void ProductionSuccessRequestR(Creature creature, SkillId skillId, float successRate, bool totalSuccess, float unkFloat)
+		{
+			var gp = new Packet(Op.ProductionSuccessRequestR, creature.EntityId);
+
+			gp.PutByte(1);
+			gp.PutUShort((ushort)skillId);
+			gp.PutShort(6);
+			gp.PutFloat(successRate);
+			gp.PutByte(0);
+			gp.PutByte(totalSuccess);
+			gp.PutFloat(unkFloat);
+
+			creature.Client.Send(gp);
+		}
+
+		/// <summary>
+		/// Sends TailoringMiniGame to creature's client to start tailoring minigame.
+		/// </summary>
+		/// <remarks>
+		/// The offsets specify the distance of the "stitch points" from the
+		/// center of the 200x200px minigame field. X is 1:1 the distance
+		/// from the center for each point, while Y gets added up.
+		/// The point closest to the center is Y/2 px away, the second Y/2+Y,
+		/// and the third Y/2+Y*2.
+		/// 
+		/// Deviation is an array of 6 values, one for each point, that specify
+		/// the amount of pixels your clicks can deviate from the actual
+		/// position you clicked. For example, if you click on 60x180 for the
+		/// first point, and the first byte in deviation is 3, the actual
+		/// position sent to the server is between 57x177 and 63x183,
+		/// randomized by the client.
+		/// If the deviation values are too big, the minigame glitches and is
+		/// likely to fail, the biggest value seen in logs was 4.
+		/// </remarks>
+		/// <param name="creature"></param>
+		/// <param name="item">Item that is to be finished.</param>
+		/// <param name="xOffset">Offset of stitch points on the x-axis.</param>
+		/// <param name="yOffset">Offset of stitch points on the y-axis.</param>
+		/// <param name="deviation">Randomization for the 6 stitch points.</param>
+		public static void TailoringMiniGame(Creature creature, Item item, int xOffset, int yOffset, byte[] deviation, byte deviation2)
+		{
+			if (deviation == null || deviation.Length != 6)
+				throw new ArgumentException("rng needs exactly 6 values.");
+
+			var packet = new Packet(Op.TailoringMiniGame, creature.EntityId);
+
+			packet.PutShort((short)xOffset);
+			packet.PutShort((short)yOffset);
+			packet.PutBin(deviation);
+
+			// Modifies cursor size, glitches the minigame if smaller than
+			// deviation? Seems to be a general deviation that applies to
+			// all points? Setting all deviations, incl this, to 0 gives
+			// the most spot-on results.
+			packet.PutByte(deviation2);
+
+			packet.PutLong(0);
+			packet.PutInt(0);
+			packet.PutLong(item.EntityId);
+			packet.PutInt(0);
+
+			creature.Client.Send(packet);
+		}
+
+		/// <summary>
+		/// Sends BlacksmithingMiniGame to creature's client, which starts
+		/// the Blacksmithing mini-game.
+		/// </summary>
+		/// <remarks>
+		/// The position of the dots is relative to the upper left of the
+		/// field. They land exactly on those spots after "wavering" for a
+		/// moment. This wavering is randomized on the client side and
+		/// doesn't affect anything.
+		/// 
+		/// The time bar is always the same, but the time it takes to fill
+		/// up changes based on the "time displacement". The lower the value,
+		/// the longer it takes to fill up. Using values that are too high
+		/// or too low mess up the calculations and cause confusing results.
+		/// The official range seems to be between ~0.81 and ~0.98.
+		/// </remarks>
+		/// <param name="creature"></param>
+		/// <param name="prop"></param>
+		/// <param name="item"></param>
+		/// <param name="dots"></param>
+		/// <param name="deviation"></param>
+		public static void BlacksmithingMiniGame(Creature creature, Prop prop, Item item, List<BlacksmithDot> dots, int deviation)
+		{
+			if (dots == null || dots.Count != 5)
+				throw new ArgumentException("5 dots required.");
+
+			var packet = new Packet(Op.BlacksmithingMiniGame, creature.EntityId);
+
+			// Untested if this is actually the deviation/cursor size,
+			// but Tailoring does something very similar. Just like with
+			// Tailoring, wrong values cause failed games.
+			packet.PutShort((short)deviation);
+
+			foreach (var dot in dots)
+			{
+				packet.PutShort((short)dot.X);
+				packet.PutShort((short)dot.Y);
+				packet.PutFloat(dot.TimeDisplacement);
+				packet.PutShort((short)dot.Deviation);
+			}
+
+			packet.PutLong(prop.EntityId);
+			packet.PutInt(0);
+			packet.PutLong(item.EntityId);
+			packet.PutInt(0);
+
+			creature.Client.Send(packet);
 		}
 	}
 }

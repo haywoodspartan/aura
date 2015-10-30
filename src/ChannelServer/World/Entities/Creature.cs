@@ -18,6 +18,7 @@ using Aura.Channel.World.Inventory;
 using Aura.Channel.Skills.Life;
 using System.Collections.Generic;
 using Aura.Channel.Skills;
+using System.Threading;
 
 namespace Aura.Channel.World.Entities
 {
@@ -359,6 +360,9 @@ namespace Aura.Channel.World.Entities
 		/// e.g. because its and elf or has a crossbow equipped.
 		/// </summary>
 		public bool CanRunWithRanged { get { return (this.IsElf || (this.RightHand != null && this.RightHand.HasTag("/crossbow/"))); } }
+
+		public Dictionary<long, HitTracker> _hitTrackers;
+		public int _totalHits;
 
 		// Stats
 		// ------------------------------------------------------------------
@@ -779,6 +783,7 @@ namespace Aura.Channel.World.Entities
 			this.Vars = new ScriptVariables();
 
 			_inquiryCallbacks = new Dictionary<byte, Action<Creature>>();
+			_hitTrackers = new Dictionary<long, HitTracker>();
 		}
 
 		/// <summary>
@@ -1101,6 +1106,11 @@ namespace Aura.Channel.World.Entities
 
 			foreach (var item in equipment.Where(a => a.Durability > 0))
 			{
+				// Going by the name, I assume items with this tag don't lose
+				// durability regularly.
+				if (item.HasTag("/no_abrasion/"))
+					continue;
+
 				switch (item.Info.Pocket)
 				{
 					case Pocket.Head: loss = 3; break;
@@ -1543,6 +1553,21 @@ namespace Aura.Channel.World.Entities
 
 			this.Life -= damage;
 
+			// Track hit
+			if (from != null)
+			{
+				HitTracker tracker;
+				lock (_hitTrackers)
+				{
+					// Create new tracker if there is none yet
+					if (!_hitTrackers.TryGetValue(from.EntityId, out tracker))
+						_hitTrackers[from.EntityId] = (tracker = new HitTracker(this, from));
+				}
+				tracker.RegisterHit(damage);
+				_totalHits = Interlocked.Increment(ref _totalHits);
+			}
+
+			// Kill if life too low
 			if (this.Life < 0 && !this.ShouldSurvive(damage, from, lifeBefore))
 				this.Kill(from);
 		}
@@ -2215,6 +2240,63 @@ namespace Aura.Channel.World.Entities
 				result += rainBonus;
 
 			return Math2.Clamp(0, 99, result);
+		}
+
+		/// <summary>
+		/// Returns the tracker for the creature that did the most hits.
+		/// </summary>
+		/// <returns></returns>
+		public HitTracker GetTopHitter()
+		{
+			HitTracker result = null;
+			var top = 0;
+
+			lock (_hitTrackers)
+			{
+				foreach (var tracker in _hitTrackers.Values)
+				{
+					if (tracker.Hits > top)
+					{
+						result = tracker;
+						top = tracker.Hits;
+					}
+				}
+			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Returns the tracker for the creature that did the most damage.
+		/// </summary>
+		/// <returns></returns>
+		public HitTracker GetTopDamageDealer()
+		{
+			HitTracker result = null;
+			var top = 0f;
+
+			lock (_hitTrackers)
+			{
+				foreach (var tracker in _hitTrackers.Values)
+				{
+					if (tracker.Damage > top)
+					{
+						result = tracker;
+						top = tracker.Damage;
+					}
+				}
+			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Returns the total number of hits the creature took.
+		/// </summary>
+		/// <returns></returns>
+		public int GetTotalHits()
+		{
+			return _totalHits;
 		}
 	}
 }

@@ -62,8 +62,6 @@ namespace Aura.Channel.Skills.Guns
 			if (creature.Conditions.Has(ConditionsD.WayOfTheGun))
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
-			creature.StopMove();
-
 			var castTime = (int)skill.RankData.Var1;
 
 			// Set Bullets Max tag if it doesn't exist

@@ -149,9 +149,9 @@ namespace Aura.Channel.Skills.Guns
 			Send.MotionCancel2(attacker, 0);
 			Send.UseMotion(attacker, 131, 6, false, false);
 
-			var unkPacket = new Packet(0x6D64, attacker.EntityId); // ?
-			unkPacket.PutInt(1599).PutInt(131).PutInt(7).PutByte(0).PutShort(0);
-			attacker.Region.Broadcast(unkPacket, attacker);
+			var unkPacket1 = new Packet(0x6D64, attacker.EntityId); // ?
+			unkPacket1.PutInt(1599).PutInt(131).PutInt(7).PutByte(0).PutShort(0);
+			attacker.Region.Broadcast(unkPacket1, attacker);
 
 			Send.Effect(attacker, 329, (byte)1, (byte)0);
 			attacker.Conditions.Activate(ConditionsD.Steadfast);
@@ -188,12 +188,17 @@ namespace Aura.Channel.Skills.Guns
 			aAction.Stun = AttackerStun;
 
 			// Prepare effect to send
-			var unkPacket4 = new Packet(Op.Effect, attacker.EntityId);
-			unkPacket4.PutInt(339).PutShort((short)skill.Info.Id).PutInt(0).PutShort(2);
+			var shootEffect = new Packet(Op.Effect, attacker.EntityId);
+			shootEffect.PutInt(339).PutShort((short)skill.Info.Id).PutInt(0);
 
-			var bulletTime = 3850; // Unofficial
+			var bulletDist = 0; // Unofficial
 
-			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4);
+			// Get targets in descending order of distance for the effect packet
+			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).ToList();
+
+			// Add Target count to effect packet
+			shootEffect.PutShort((short)targets.Count);
+
 			foreach (var target in targets.Where(cr => !cr.IsDead && attacker.CanTarget(cr)))
 			{
 				var tAction = new TargetAction(CombatActionType.SkillActiveHit, target, attacker, SkillId.None);
@@ -259,9 +264,9 @@ namespace Aura.Channel.Skills.Guns
 					tAction.Creature.Stun = tAction.Stun;
 				}
 
-				bulletTime /= 7;
-
-				unkPacket4.PutInt(bulletTime).PutLong(target.EntityId);
+				bulletDist = target.GetPosition().GetDistance(attackerPos);
+				tAction.Delay = bulletDist;
+				shootEffect.PutInt(bulletDist).PutLong(target.EntityId);
 			}
 			aAction.Creature.Stun = aAction.Stun;
 			cap.Handle();
@@ -272,7 +277,7 @@ namespace Aura.Channel.Skills.Guns
 
 			Send.SkillUse(attacker, skill.Info.Id, targetAreaId, 0, 1);
 			skill.Stacks = 0;
-			attacker.Region.Broadcast(unkPacket4, attacker);
+			attacker.Region.Broadcast(shootEffect, attacker);
 
 			// Item Update excluding Way Of The Gun
 			if (!attacker.Conditions.Has(ConditionsD.WayOfTheGun))

@@ -64,6 +64,8 @@ namespace Aura.Channel.Skills.Guns
 				Send.ItemUpdate(creature, creature.RightHand);
 			}
 
+			creature.StopMove();
+
 			// Set Gun Ammo to 0
 			creature.RightHand.MetaData1.SetShort(BulletCountTag, 0);
 			Send.ItemUpdate(creature, creature.RightHand);

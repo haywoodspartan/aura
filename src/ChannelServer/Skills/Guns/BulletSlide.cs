@@ -287,71 +287,22 @@ namespace Aura.Channel.Skills.Guns
 			switch (attackerSkill.Info.Rank)
 			{
 				case SkillRank.RF:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					break;
 				case SkillRank.RE:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					break;
 				case SkillRank.RD:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					break;
 				case SkillRank.RC:
 					attackerSkill.Train(1); // Attack an enemy
 					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
 					break;
 				case SkillRank.RB:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
-					break;
 				case SkillRank.RA:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
-					break;
 				case SkillRank.R9:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
-					break;
 				case SkillRank.R8:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
-					break;
 				case SkillRank.R7:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
-					break;
 				case SkillRank.R6:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
-					break;
 				case SkillRank.R5:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
-					break;
 				case SkillRank.R4:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
-					break;
 				case SkillRank.R3:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
-					break;
 				case SkillRank.R2:
-					attackerSkill.Train(1); // Attack an enemy
-					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
-					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
-					break;
 				case SkillRank.R1:
 					attackerSkill.Train(1); // Attack an enemy
 					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow

@@ -123,8 +123,12 @@ namespace Aura.Channel.World.Dungeons
 				var existing = this.Get(a => a.Name == dungeonName && a.ItemId == itemId);
 				if (existing == null || ChannelServer.Instance.Conf.World.PrivateDungeons)
 				{
+					// Random floor plan on Tuesday
+					var day = ErinnTime.Now.Day;
+					var floorPlan = (day == 2 || ChannelServer.Instance.Conf.World.RandomFloors ? rnd.Next() : day);
+
 					instanceId = this.GetInstanceId();
-					dungeon = new Dungeon(instanceId, dungeonName, itemId, rnd.Next(), rnd.Next(), creature);
+					dungeon = new Dungeon(instanceId, dungeonName, itemId, rnd.Next(), floorPlan, creature);
 				}
 				else
 					dungeon = existing;
@@ -296,14 +300,15 @@ namespace Aura.Channel.World.Dungeons
 					var dungeon = this.CreateDungeon(dungeonName, itemId, creature);
 					var regionId = dungeon.Regions.First().Id;
 
-					// Original creature is always a member of the dungeon party.
-					foreach (var member in dungeon.Party)
+					// Warp the party currently standing on the altar into the dungeon.
+					var party = creature.Party.GetCreaturesOnAltar(creature.RegionId);
+					foreach (var member in party)
 					{
 						var pos = member.GetPosition();
 						member.Warp(regionId, pos);
 
 						// TODO: This is a bit hacky, needs to be moved to Creature.Warp, with an appropriate check.
-						Send.EntitiesDisappear(member.Client, dungeon.Party);
+						Send.EntitiesDisappear(member.Client, party);
 					}
 
 					return true;

@@ -44,6 +44,11 @@ namespace Aura.Channel.World.Dungeons
 		public const int TileSize = 2400;
 
 		/// <summary>
+		/// Duration of the player list scroll message in ms.
+		/// </summary>
+		public const int ScrollMessageDuration = 20000;
+
+		/// <summary>
 		/// The instance id of this dungeon.
 		/// </summary>
 		public long InstanceId { get; private set; }
@@ -149,15 +154,11 @@ namespace Aura.Channel.World.Dungeons
 			this.FloorPlan = floorPlan;
 			this.Options = XElement.Parse("<option />");
 
-			this.Party = new List<Creature>(); // = creature.Party; || = party;
-			this.Party.Add(creature);
+			this.Party = new List<Creature>();
 			this.PartyLeader = creature;
 
-			if (creature.IsInParty)
-			{
-				// Only creatures who actually ENTER the dungeon at creation are considered "dungeon founders".
-				this.Party.AddRange(creature.Party.OnAltar());
-			}
+			// Only creatures who actually ENTER the dungeon at creation are considered "dungeon founders".
+			this.Party.AddRange(creature.Party.GetCreaturesOnAltar(creature.RegionId));
 
 			// Get script
 			this.Script = ChannelServer.Instance.ScriptManager.DungeonScripts.Get(this.Name);
@@ -182,6 +183,7 @@ namespace Aura.Channel.World.Dungeons
 			// Create lobby
 			var lobbyRegionId = ChannelServer.Instance.World.DungeonManager.GetRegionId();
 			var lobbyRegion = new DungeonLobbyRegion(lobbyRegionId, this.Data.LobbyRegionId, this);
+			lobbyRegion.PlayerEnters += this.OnPlayerEntersLobby;
 			this.Regions.Add(lobbyRegion);
 
 			// Create floors
@@ -388,8 +390,12 @@ namespace Aura.Channel.World.Dungeons
 			saveStatue.Info.Color3 = floorData.Color3;
 			saveStatue.Behavior = (cr, pr) =>
 			{
-				cr.DungeonSaveLocation = new Location(cr.RegionId, cr.GetPosition());
+				cr.DungeonSaveLocation = cr.GetLocation();
 				Send.Notice(cr, Localization.Get("You have memorized this location."));
+
+				// Scroll message
+				var msg = string.Format("You're currently on Floor {0} of {1}. ", iRegion, this.Data.EngName);
+				Send.Notice(cr, NoticeType.Top, ScrollMessageDuration, msg + this.GetPlayerListScrollMessage());
 			};
 			region.AddProp(saveStatue);
 
@@ -721,6 +727,85 @@ namespace Aura.Channel.World.Dungeons
 		public void PlayCutscene(string cutsceneName)
 		{
 			Cutscene.Play(cutsceneName, this.PartyLeader);
+		}
+
+		/// <summary>
+		/// Called when a creature enters the lobby region.
+		/// </summary>
+		/// <param name="creature"></param>
+		private void OnPlayerEntersLobby(Creature creature)
+		{
+			// Save location
+			// This happens whenever you enter the lobby.
+			creature.DungeonSaveLocation = creature.GetLocation();
+			Send.Notice(creature, Localization.Get("You have memorized this location."));
+
+			// Notify player if dungeon was created by another party.
+			if (!this.Party.Contains(creature))
+				Send.MsgBox(creature, Localization.Get("This dungeon has been created by another player."));
+
+			// Scroll message
+			var msg = "";
+			if (this.Party.Contains(creature))
+				msg = Localization.Get("This dungeon has been created by you or your party.\t") + msg;
+			else
+				msg = Localization.Get("This dungeon has been created by another player.") + msg;
+
+			Send.Notice(creature, NoticeType.Top, ScrollMessageDuration, msg + this.GetPlayerListScrollMessage());
+		}
+
+		/// <summary>
+		/// Returns true if all doors except the boss door have been opened.
+		/// </summary>
+		/// <returns></returns>
+		public bool CheckDoors()
+		{
+			foreach (var region in this.Regions)
+			{
+				var dungeonFloorRegion = region as DungeonFloorRegion;
+				if (dungeonFloorRegion == null)
+					continue;
+
+				var props = region.GetProps(a => a is Door && a.State == "closed");
+				var max = dungeonFloorRegion.Floor.IsLastFloor ? 1 : 0;
+
+				if (props.Count > max)
+					return false;
+			}
+
+			return true;
+		}
+
+		/// <summary>
+		/// Returns the text for the player location crawler.
+		/// </summary>
+		/// <returns></returns>
+		public string GetPlayerListScrollMessage()
+		{
+			var sb = new StringBuilder();
+			var count = 0;
+
+			sb.Append(Localization.Get("Players in the dungeon:"));
+
+			for (var i = 0; i < this.Regions.Count; i++)
+			{
+				var floorString = (i == 0 ? Localization.Get("Entrance") : string.Format(Localization.Get("Floor {0}"), i));
+
+				foreach (var player in this.Regions[i].GetAllPlayers())
+				{
+					var name = (!player.IsPet || player.Master == null)
+						? player.Name
+						: string.Format(Localization.Get("{0}'s {1}"), player.Master.Name, player.Name);
+
+					sb.AppendFormat(" {0} ({1})", name, floorString);
+
+					count++;
+				}
+			}
+
+			sb.AppendFormat(Localization.Get("... {0} player(s) total"), count);
+
+			return sb.ToString();
 		}
 	}
 }

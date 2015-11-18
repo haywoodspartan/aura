@@ -19,13 +19,13 @@ namespace Aura.Channel.Network.Handlers
 		/// Sent after selecting all rebirth options.
 		/// </summary>
 		/// <remarks>
-		/// To get into the rebirth screen send "<rebirth style='-1'/>"
-		/// as a NPC message. The dialog result will either be "@rebirth"
+		/// To get into the rebirth screen, send "<rebirth style='-1'/>"
+		/// as an NPC message. The dialog result will be either "@rebirth"
 		/// or "@cancel".
 		/// 
-		/// You can always go to Nao to rebirth from the login screen,
+		/// You can always go to Nao for rebirthing from the login screen,
 		/// because the last rebirth time is only sent in the full
-		/// creature info in 5209. In-game the client checks the date,
+		/// creature info in 5209. In-game, the client checks the date,
 		/// preventing one from going there before it should be possible
 		/// under NA rules.
 		/// </remarks>
@@ -112,6 +112,10 @@ namespace Aura.Channel.Network.Handlers
 				creature.Height = Math.Min(1.0f, 1.0f / 7.0f * (age - 10.0f)); // 0 ~ 1.0
 			}
 
+			// Reset gender (race)
+			if (resetGender)
+				creature.RaceId = race;
+
 			// Reset level and stats
 			if (resetLevel)
 			{
@@ -153,6 +157,10 @@ namespace Aura.Channel.Network.Handlers
 			player.LastRebirth = DateTime.Now;
 			player.RebirthCount++;
 
+			// Prevent pre-G4 Iria rebirth
+			if (!AuraData.FeaturesDb.IsEnabled("IriaRebirth"))
+				location = RebirthLocation.Tir;
+
 			// Location
 			switch (location)
 			{
@@ -160,7 +168,6 @@ namespace Aura.Channel.Network.Handlers
 				case RebirthLocation.Tir: creature.SetLocation(125, 21489, 76421); break;
 
 				// Iria beginner area (Rano)
-				// (TODO: Disable pre-G4?)
 				case RebirthLocation.Iria: creature.SetLocation(3001, 164533, 161862); break;
 			}
 

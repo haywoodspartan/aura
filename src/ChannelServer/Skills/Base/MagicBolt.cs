@@ -24,6 +24,11 @@ namespace Aura.Channel.Skills.Base
 	public abstract class MagicBolt : IPreparable, IReadyable, ICombatSkill, ICompletable, ICancelable, IInitiableSkillHandler, ICustomHitCanceler
 	{
 		/// <summary>
+		/// Minimum stability required to not get knocked down.
+		/// </summary>
+		private const float MinStability = 20;
+
+		/// <summary>
 		/// Stun time of attacker after use in ms.
 		/// </summary>
 		protected virtual short AttackerStun { get { return 500; } }
@@ -173,7 +178,7 @@ namespace Aura.Channel.Skills.Base
 			target.StopMove();
 
 			// Create actions
-			var aAction = new AttackerAction(CombatActionType.RangeHit, attacker, skill.Info.Id, target.EntityId);
+			var aAction = new AttackerAction(CombatActionType.RangeHit, attacker, target.EntityId);
 			aAction.Set(AttackerOptions.Result);
 
 			var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, skill.Info.Id);
@@ -197,7 +202,7 @@ namespace Aura.Channel.Skills.Base
 			target.Aggro(attacker);
 
 			// Death/Knockback
-			this.HandleKnockBack(attacker, target, tAction);
+			this.HandleKnockBack(attacker, target, tAction, false);
 
 			// Override stun set by defense
 			aAction.Stun = AttackerStun;
@@ -213,7 +218,11 @@ namespace Aura.Channel.Skills.Base
 		/// <summary>
 		/// Handles knock back/stun/death.
 		/// </summary>
-		protected virtual void HandleKnockBack(Creature attacker, Creature target, TargetAction tAction)
+		/// <param name="attacker"></param>
+		/// <param name="target"></param>
+		/// <param name="tAction"></param>
+		/// <param name="overcharge">If true, the target will be knock back instantly.</param>
+		protected virtual void HandleKnockBack(Creature attacker, Creature target, TargetAction tAction, bool overcharge)
 		{
 			if (target.IsDead)
 			{
@@ -225,18 +234,21 @@ namespace Aura.Channel.Skills.Base
 				// If knocked down, instant recovery,
 				// if repeat hit, knock down,
 				// otherwise potential knock back.
-
 				if (target.IsKnockedDown)
 				{
 					tAction.Stun = 0;
 				}
-				else if (target.IsUnstable)
+				else if (target.Stability < MinStability)
 				{
 					tAction.Set(TargetOptions.KnockDown);
 				}
 				else
 				{
-					target.Stability -= StabilityReduction;
+					if (overcharge)
+						target.Stability = Creature.MinStability;
+					else
+						target.Stability -= StabilityReduction;
+
 					if (target.IsUnstable)
 					{
 						tAction.Set(TargetOptions.KnockBack);
@@ -286,10 +298,10 @@ namespace Aura.Channel.Skills.Base
 		/// <param name="tAction"></param>
 		protected virtual void OnCreatureAttack(TargetAction tAction)
 		{
-			if (tAction.SkillId != this.SkillId)
+			if (tAction.AttackerSkillId != this.SkillId)
 				return;
 
-			var attackerSkill = tAction.Attacker.Skills.Get(tAction.SkillId);
+			var attackerSkill = tAction.Attacker.Skills.Get(tAction.AttackerSkillId);
 			if (attackerSkill == null) return;
 
 			this.Train(tAction, attackerSkill);

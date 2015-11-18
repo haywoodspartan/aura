@@ -38,6 +38,7 @@ namespace Aura.Channel.Util.Configuration.Files
 		public bool UnlimitedUpgrades { get; protected set; }
 		public bool UncapProficiency { get; protected set; }
 		public bool UnlimitedDyes { get; protected set; }
+		public int DyeDifficulty { get; protected set; }
 
 		public TimeSpan RebirthTime { get; protected set; }
 
@@ -47,6 +48,7 @@ namespace Aura.Channel.Util.Configuration.Files
 
 		public bool PrivateDungeons { get; protected set; }
 		public bool EasySwitch { get; protected set; }
+		public bool RandomFloors { get; protected set; }
 
 		public float PartyExpBonus { get; protected set; }
 		public int PartyMaxSize { get; protected set; }
@@ -85,6 +87,7 @@ namespace Aura.Channel.Util.Configuration.Files
 			this.UnlimitedUpgrades = this.GetBool("unlimited_upgrades", false);
 			this.UncapProficiency = this.GetBool("uncap_proficiency", false);
 			this.UnlimitedDyes = this.GetBool("unlimited_dyes", false);
+			this.DyeDifficulty = Math2.Clamp(1, 5, this.GetInt("dye_difficulty", 5));
 
 			this.RebirthTime = TimeSpan.FromDays(this.GetInt("rebirth_time", 6));
 
@@ -94,6 +97,7 @@ namespace Aura.Channel.Util.Configuration.Files
 
 			this.PrivateDungeons = this.GetBool("private_dungeons", false);
 			this.EasySwitch = this.GetBool("easy_switch", false);
+			this.RandomFloors = this.GetBool("random_floors", false);
 
 			this.PartyExpBonus = this.GetFloat("party_exp_bonus", 0);
 			this.PartyMaxSize = Math2.Clamp(1, 99, this.GetInt("party_max_size", 8));

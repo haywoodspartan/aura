@@ -285,44 +285,14 @@ namespace Aura.Channel.Network.Sending
 		/// <summary>
 		/// Sends SkillUse to creature's client.
 		/// </summary>
-		/// <remarks>
-		/// TODO: Look into sending packets back as is, so we don't have to
-		///   recreate complex ones like this one.
-		/// </remarks>
 		/// <param name="creature"></param>
 		/// <param name="skillId"></param>
-		/// <param name="unkByte"></param>
-		/// <param name="propEntityId"></param>
 		/// <param name="unkInt"></param>
-		/// <param name="productId"></param>
-		/// <param name="unkShort"></param>
-		/// <param name="category"></param>
-		/// <param name="amountToProduce"></param>
-		/// <param name="materials"></param>
-		public static void SkillUse(Creature creature, SkillId skillId, byte unkByte, long propEntityId, int unkInt, int productId, short unkShort, ProductionCategory category, short amountToProduce, List<ProductionMaterial> materials)
+		public static void SkillUse(Creature creature, SkillId skillId, int unkInt)
 		{
-			if (materials.Count > byte.MaxValue)
-				throw new ArgumentException("Amount of materials can't be larger than 255.");
-
 			var packet = new Packet(Op.SkillUse, creature.EntityId);
-
 			packet.PutUShort((ushort)skillId);
-			packet.PutByte(unkByte);
-			if (propEntityId != 0)
-			{
-				packet.PutLong(propEntityId);
-				packet.PutInt(unkInt);
-			}
-			packet.PutInt(productId);
-			packet.PutShort(unkShort);
-			packet.PutShort((short)category);
-			packet.PutShort(amountToProduce);
-			packet.PutByte((byte)materials.Count);
-			foreach (var material in materials)
-			{
-				packet.PutLong(material.Item.EntityId);
-				packet.PutShort((short)material.Amount);
-			}
+			packet.PutInt(unkInt);
 
 			creature.Client.Send(packet);
 		}
@@ -551,38 +521,12 @@ namespace Aura.Channel.Network.Sending
 		/// </summary>
 		/// <param name="creature"></param>
 		/// <param name="skillId"></param>
-		/// <param name="unkByte"></param>
-		/// <param name="propEntityId"></param>
 		/// <param name="unkInt"></param>
-		/// <param name="productId"></param>
-		/// <param name="unkShort"></param>
-		/// <param name="category"></param>
-		/// <param name="amountToProduce"></param>
-		/// <param name="materials"></param>
-		public static void SkillComplete(Creature creature, SkillId skillId, byte unkByte, long propEntityId, int unkInt, int productId, short unkShort, ProductionCategory category, short amountToProduce, List<ProductionMaterial> materials)
+		public static void SkillComplete(Creature creature, SkillId skillId, int unkInt)
 		{
-			if (materials.Count > byte.MaxValue)
-				throw new ArgumentException("Amount of materials can't be larger than 255.");
-
 			var packet = new Packet(Op.SkillComplete, creature.EntityId);
-
 			packet.PutUShort((ushort)skillId);
-			packet.PutByte(unkByte);
-			if (propEntityId != 0)
-			{
-				packet.PutLong(propEntityId);
-				packet.PutInt(unkInt);
-			}
-			packet.PutInt(productId);
-			packet.PutShort(unkShort);
-			packet.PutShort((short)category);
-			packet.PutShort(amountToProduce);
-			packet.PutByte((byte)materials.Count);
-			foreach (var material in materials)
-			{
-				packet.PutLong(material.Item.EntityId);
-				packet.PutShort((short)material.Amount);
-			}
+			packet.PutInt(unkInt);
 
 			creature.Client.Send(packet);
 		}

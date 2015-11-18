@@ -122,20 +122,32 @@ namespace Aura.Channel.Skills.Combat
 		/// <returns></returns>
 		public static bool Handle(Creature target, Creature attacker)
 		{
-			if (!target.Skills.IsReady(SkillId.Counterattack))
-				return false;
+			// We currently have a race condition here, Counter is used if
+			// it's in the Ready state, but handling Counter takes a moment,
+			// in which another enemy might attack, before the state is set
+			// to Used. Once AIs aren't handled by the server anymore,
+			// this would be *very* unlikely to happen, since the state
+			// setting could be moved, but for the moment this lock is needed.
+			// If the client is told about 2 simultaneous Counter uses it
+			// will lock the user in place.
+			lock (target.Temp.CounterSyncLock)
+			{
+				if (!target.Skills.IsReady(SkillId.Counterattack))
+					return false;
 
-			var handler = ChannelServer.Instance.SkillManager.GetHandler<Counterattack>(SkillId.Counterattack);
-			handler.Use(target, attacker);
+				var handler = ChannelServer.Instance.SkillManager.GetHandler<Counterattack>(SkillId.Counterattack);
+				handler.Use(target, attacker);
 
-			// TODO: Centralize this so we don't have to maintain the active
-			//   skill and the regens in multiple places.
-			// TODO: Remove the need for this null check... AIs reset ActiveSkill
-			//   in Complete, which is called from the combat action handler
-			//   before we get back here.
-			if (target.Skills.ActiveSkill != null)
-				target.Skills.ActiveSkill.State = SkillState.Used;
-			target.Regens.Remove("ActiveSkillWait");
+				// TODO: Centralize this so we don't have to maintain the active
+				//   skill and the regens in multiple places.
+				// TODO: Remove the need for this null check... AIs reset ActiveSkill
+				//   in Complete, which is called from the combat action handler
+				//   before we get back here.
+				if (target.Skills.ActiveSkill != null)
+					target.Skills.ActiveSkill.State = SkillState.Used;
+
+				target.Regens.Remove("ActiveSkillWait");
+			}
 
 			return true;
 		}
@@ -155,7 +167,7 @@ namespace Aura.Channel.Skills.Combat
 
 			var skill = attacker.Skills.Get(SkillId.Counterattack);
 
-			var aAction = new AttackerAction(CombatActionType.RangeHit, attacker, SkillId.Counterattack, target.EntityId);
+			var aAction = new AttackerAction(CombatActionType.RangeHit, attacker, target.EntityId);
 			aAction.Options |= AttackerOptions.Result | AttackerOptions.KnockBackHit2;
 
 			var tAction = new TargetAction(CombatActionType.CounteredHit2, target, attacker, target.Skills.IsReady(SkillId.Smash) ? SkillId.Smash : SkillId.CombatMastery);
@@ -210,7 +222,7 @@ namespace Aura.Channel.Skills.Combat
 			{
 				attackerSkill.Train(2); // Successfully counter enemy's attack.
 
-				if (tAction.SkillId == SkillId.Smash)
+				if (tAction.AttackerSkillId == SkillId.Smash)
 					attackerSkill.Train(4); // Counter enemy's special attack.
 
 				if (tAction.Has(TargetOptions.Critical))
@@ -220,7 +232,7 @@ namespace Aura.Channel.Skills.Combat
 			{
 				attackerSkill.Train(1); // Successfully counter enemy's attack.
 
-				if (tAction.SkillId == SkillId.Smash)
+				if (tAction.AttackerSkillId == SkillId.Smash)
 					attackerSkill.Train(2); // Counter enemy's special attack.
 
 				if (tAction.Has(TargetOptions.Critical))

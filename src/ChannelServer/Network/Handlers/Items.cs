@@ -77,38 +77,9 @@ namespace Aura.Channel.Network.Handlers
 			if (!creature.Inventory.Move(item, target, targetX, targetY))
 				goto L_Fail;
 
-			// Handle stuff that happens when you equip certain things.
-			// TODO: Handle in a script?
+			// Raise equiped event
 			if (target.IsEquip())
-			{
-				// Give Ranged Attack when equipping a (cross)bow
-				if ((item.HasTag("/bow/|/crossbow/")) && !creature.Skills.Has(SkillId.RangedAttack))
-					creature.Skills.Give(SkillId.RangedAttack, SkillRank.Novice);
-
-				// Give Dice Tossing When equiping Dice
-				if ((item.HasTag("/dice/")) && !creature.Skills.Has(SkillId.DiceTossing))
-					creature.Skills.Give(SkillId.DiceTossing, SkillRank.Novice);
-
-				// Give Playing Instrument when equipping an instrument
-				if ((item.HasTag("/instrument/")) && !creature.Skills.Has(SkillId.PlayingInstrument))
-					creature.Skills.Give(SkillId.PlayingInstrument, SkillRank.Novice);
-
-				// Give Potion Making when equipping a Potion Concoction Kit
-				if ((item.HasTag("/potion_making/kit/")) && !creature.Skills.Has(SkillId.PotionMaking))
-					creature.Skills.Give(SkillId.PotionMaking, SkillRank.Novice);
-
-				// Give Handicraft when equipping a Handicraft Kit
-				if ((item.HasTag("/handicraft_kit/")) && !creature.Skills.Has(SkillId.Handicraft))
-					creature.Skills.Give(SkillId.Handicraft, SkillRank.RF);
-
-				// Give Tailoring when equipping a Tailoring Kit
-				if ((item.HasTag("/tailor/kit/")) && !creature.Skills.Has(SkillId.Tailoring))
-					creature.Skills.Give(SkillId.Tailoring, SkillRank.Novice);
-
-				// Raise equiped event
-				// TODO: Script mentioned above should use this event.
 				ChannelServer.Instance.Events.OnPlayerEquipsItem(creature, item);
-			}
 
 			// Inform about temp moves (items in temp don't count for quest objectives?)
 			if (source == Pocket.Temporary && target == Pocket.Cursor)
@@ -287,7 +258,7 @@ namespace Aura.Channel.Network.Handlers
 				amount = item.Info.Amount;
 
 			// Clone item or create new one based on stack item
-			var splitItem = item.Data.StackItem == 0 ? new Item(item) : new Item(item.Data.StackItem);
+			var splitItem = item.Data.StackItemId == 0 ? new Item(item) : new Item(item.Data.StackItemId);
 			splitItem.Info.Amount = amount;
 
 			// New item on cursor
@@ -300,7 +271,7 @@ namespace Aura.Channel.Network.Handlers
 			// Update amount or remove
 			item.Info.Amount -= amount;
 
-			if (item.Info.Amount > 0 || item.Data.StackItem != 0)
+			if (item.Info.Amount > 0 || item.Data.StackItemId != 0)
 			{
 				Send.ItemAmount(creature, item);
 			}
@@ -508,7 +479,14 @@ namespace Aura.Channel.Network.Handlers
 		{
 			var creature = client.GetCreatureSafe(packet.Id);
 
-			Send.DyePaletteReqR(creature, 0, 0, 0, 0);
+			var rnd = RandomProvider.Get();
+
+			var a1 = creature.Temp.DyeDistortA1 = rnd.Next(256);
+			var a2 = creature.Temp.DyeDistortA2 = rnd.Next(256);
+			var a3 = creature.Temp.DyeDistortA3 = rnd.Next(256);
+			var a4 = creature.Temp.DyeDistortA4 = rnd.Next(256);
+
+			Send.DyePaletteReqR(creature, a1, a2, a3, a4);
 		}
 
 		/// <summary>
@@ -530,11 +508,29 @@ namespace Aura.Channel.Network.Handlers
 
 			var creature = client.GetCreatureSafe(packet.Id);
 
+			var rnd = RandomProvider.Get();
+
 			var pickers = new DyePickers();
-			//pickers.Picker2.X = 10;
-			//pickers.Picker2.Y = 10;
-			//pickers.Picker3.X = -10;
-			//pickers.Picker3.Y = 10;
+			if (ChannelServer.Instance.Conf.World.DyeDifficulty >= 2)
+			{
+				pickers.Picker2.X = (short)-rnd.Next(10, 16);
+				pickers.Picker2.Y = (short)-rnd.Next(10, 16);
+			}
+			if (ChannelServer.Instance.Conf.World.DyeDifficulty >= 3)
+			{
+				pickers.Picker3.X = (short)+rnd.Next(10, 16);
+				pickers.Picker3.Y = (short)-rnd.Next(10, 16);
+			}
+			if (ChannelServer.Instance.Conf.World.DyeDifficulty >= 4)
+			{
+				pickers.Picker4.X = (short)-rnd.Next(10, 16);
+				pickers.Picker4.Y = (short)+rnd.Next(10, 16);
+			}
+			if (ChannelServer.Instance.Conf.World.DyeDifficulty >= 5)
+			{
+				pickers.Picker5.X = (short)+rnd.Next(10, 16);
+				pickers.Picker5.Y = (short)+rnd.Next(10, 16);
+			}
 
 			creature.Temp.RegularDyePickers = pickers;
 

@@ -3,6 +3,7 @@
 
 using Aura.Channel.Network.Sending;
 using Aura.Channel.Skills.Base;
+using Aura.Channel.World;
 using Aura.Channel.World.Entities;
 using Aura.Data;
 using Aura.Data.Database;
@@ -289,6 +290,7 @@ namespace Aura.Channel.Skills.Life
 				// and very bad, based on another random number.
 				var chance = this.GetSuccessChance(creature, skill, manualData.Rank);
 				success = (rnd.NextDouble() * 100 < chance);
+				var rngFailSuccess = rnd.NextDouble();
 
 				// Calculate progress to add
 				// Base line is between 50 and 100% of the max progress from
@@ -296,6 +298,54 @@ namespace Aura.Channel.Skills.Life
 				// always put it on 100% instantly, as long as it's a success.
 				var addProgress = rnd.Between(manualData.MaxProgress / 2, manualData.MaxProgress);
 				var rankDiff = ((int)skill.Info.Rank - (int)manualData.Rank);
+
+				var msg = "";
+				ProgressResult result;
+
+				// Apply RNG fail/success
+				if (!success)
+				{
+					// 25% chance for very bad
+					if (rngFailSuccess < 0.25f)
+					{
+						msg += Localization.Get("Yikes. That was terrible. Are you feeling okay?");
+						addProgress /= 2f;
+						result = ProgressResult.VeryBad;
+					}
+					// 75% chance for bad
+					else
+					{
+						msg += Localization.Get("Failed...");
+						addProgress /= 1.5f;
+						result = ProgressResult.Bad;
+					}
+				}
+				else
+				{
+					// 25% chance for best, if manual is >= 2 ranks
+					if (rngFailSuccess < 0.25f && rankDiff <= -2)
+					{
+						msg += Localization.Get("A smashing success!!!");
+						addProgress *= 2f;
+						result = ProgressResult.VeryGood;
+					}
+					// 85% chance for good
+					else
+					{
+						// Too easy if more than two ranks below, which counts
+						// as a training fail, according to the Wiki.
+						if (rankDiff >= 2)
+						{
+							msg += Localization.Get("That was way too easy.");
+							result = ProgressResult.Bad;
+						}
+						else
+						{
+							msg += Localization.Get("Success!");
+							result = ProgressResult.Good;
+						}
+					}
+				}
 
 				// Weather bonus
 				if (ChannelServer.Instance.Weather.GetWeatherType(creature.RegionId) == WeatherType.Rain)
@@ -306,19 +356,22 @@ namespace Aura.Channel.Skills.Life
 				item.MetaData1.SetFloat(ProgressVar, progress);
 
 				// Message
-				var msg = Localization.Get("Success!");
-
 				if (progress == 1)
 					msg += Localization.Get("\nFinal Stage remaining");
 				else
 					msg += string.Format(Localization.Get("\n{0}% completed."), (int)(progress * 100));
 
 				Send.Notice(creature, msg);
+				this.OnProgress(creature, skill, item, result);
 			}
 			else
 			{
 				var quality = this.CalculateQuality(hits, creature.Temp.BlacksmithingMiniGameDots);
 				this.FinishItem(creature, skill, manualData, creature.Temp.CreationFinishId, item, quality);
+				this.OnProgress(creature, skill, item, ProgressResult.Finish);
+
+				// Creation event
+				ChannelServer.Instance.Events.OnCreatureCreatedItem(new CreationEventArgs(creature, CreationMethod.Blacksmithing, item, manualData.Rank));
 			}
 
 			// Add or update item
@@ -352,7 +405,21 @@ namespace Aura.Channel.Skills.Life
 			if (creature.RightHand == null || creature.Magazine == null || !creature.RightHand.HasTag("/tool/blacksmith/*/hammer/") || !creature.Magazine.HasTag("/blacksmith/manual/"))
 			{
 				// Sanity check, client checks it as well.
-				Send.Notice(creature, Localization.Get("You ned a Hammer in your right hand\nand a Blacksmith Manual in your left."));
+				Send.Notice(creature, Localization.Get("You need a Hammer in your right hand\nand a Blacksmith Manual in your left."));
+				return false;
+			}
+
+			// Check if kit has enough durability
+			if (creature.RightHand.Durability < ToolDurabilityLoss)
+			{
+				Send.MsgBox(creature, Localization.Get("You can't use this Blacksmith Hammer anymore."));
+				return false;
+			}
+
+			// Check if manual has enough durability
+			if (creature.Magazine.Durability < ManualDurabilityLoss)
+			{
+				Send.MsgBox(creature, Localization.Get("You can't use this blueprint anymore. It's too faded."));
 				return false;
 			}
 
@@ -429,6 +496,278 @@ namespace Aura.Channel.Skills.Life
 			// Min = -100
 			// Max = 100 (increasing the max would increase the chance for 100 quality)
 			return Math.Max(-100, 100 - (int)(total * 2));
+		}
+
+		/// <summary>
+		/// Handles skill training.
+		/// </summary>
+		/// <param name="creature"></param>
+		/// <param name="skill"></param>
+		/// <param name="item"></param>
+		/// <param name="result"></param>
+		private void OnProgress(Creature creature, Skill skill, Item item, ProgressResult result)
+		{
+			if (skill.Info.Rank == SkillRank.RF)
+			{
+				if (item.HasTag("/weapon/|/tool/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Achieve a great result forging a tool or a weapon.
+						case ProgressResult.Good: skill.Train(2); break;     // Achieve a good result forging a tool or a weapon.
+						case ProgressResult.VeryBad: skill.Train(3); break;  // Achieve a failing result forging a tool or a weapon.
+						case ProgressResult.Bad: skill.Train(4); break;      // Achieve a bad result forging a tool or a weapon.
+						case ProgressResult.Finish: skill.Train(5); break;   // Successfully forge a tool or a weapon.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank == SkillRank.RE)
+			{
+				if (item.HasTag("/shield/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Achieve a great result forging a shield.
+						case ProgressResult.Good: skill.Train(2); break;     // Achieve a good result forging a shield.
+						case ProgressResult.VeryBad: skill.Train(3); break;  // Achieve a failing result forging a shield.
+						case ProgressResult.Bad: skill.Train(4); break;      // Achieve a bad result forging a shield.
+						case ProgressResult.Finish: skill.Train(5); break;   // Successfully forge a shield.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank == SkillRank.RD)
+			{
+				if (item.HasTag("/helmet/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Achieve a great result forging a helmet.
+						case ProgressResult.Good: skill.Train(2); break;     // Achieve a good result forging a helmet.
+						case ProgressResult.VeryBad: skill.Train(3); break;  // Achieve a failing result forging a helmet.
+						case ProgressResult.Bad: skill.Train(4); break;      // Achieve a bad result forging a helmet.
+						case ProgressResult.Finish: skill.Train(5); break;   // Successfully forge a helmet.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank == SkillRank.RC)
+			{
+				if (item.HasTag("/gauntlet/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Achieve a great result forging gauntlets.
+						case ProgressResult.Good: skill.Train(2); break;     // Achieve a good result forging gauntlets.
+						case ProgressResult.VeryBad: skill.Train(3); break;  // Achieve a failing result forging gauntlets.
+						case ProgressResult.Bad: skill.Train(4); break;      // Achieve a bad result forging gauntlets.
+						case ProgressResult.Finish: skill.Train(5); break;   // Successfully forge gauntlets.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank == SkillRank.RB)
+			{
+				if (item.HasTag("/armorboots/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Achieve a great result forging greaves.
+						case ProgressResult.Good: skill.Train(2); break;     // Achieve a good result forging greaves.
+						case ProgressResult.VeryBad: skill.Train(3); break;  // Achieve a failing result forging greaves.
+						case ProgressResult.Bad: skill.Train(4); break;      // Achieve a bad result forging greaves.
+						case ProgressResult.Finish: skill.Train(5); break;   // Successfully forge greaves.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank == SkillRank.RA)
+			{
+				if (item.HasTag("/armor/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Greatly successful in making Armor
+						case ProgressResult.Good: skill.Train(2); break;     // Successful in making Armors
+						case ProgressResult.VeryBad: skill.Train(3); break;  // If unsuccessful in making Armor
+						case ProgressResult.Bad: skill.Train(4); break;      // The result of making Armor is very poor.
+						case ProgressResult.Finish: skill.Train(5); break;   // Completed making Armor 100%.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank == SkillRank.R9)
+			{
+				if (item.HasTag("/armor/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Greatly successful in making Armor
+						case ProgressResult.Good: skill.Train(2); break;     // Successful in making Armors
+						case ProgressResult.Finish: skill.Train(3); break;   // Completed making Armor 100%.
+					}
+				}
+				else if (item.HasTag("/weapon/|/tool/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.Good: skill.Train(4); break;     // Successful in making a tool or a weapon.
+						case ProgressResult.Finish: skill.Train(5); break;   // Completed making tool or a weapon 100%.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank == SkillRank.R8)
+			{
+				if (item.HasTag("/armor/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Greatly successful in making Armor
+						case ProgressResult.Good: skill.Train(2); break;     // Successful in making Armors
+						case ProgressResult.Finish: skill.Train(3); break;   // Completed making Armor 100%.
+					}
+				}
+				else if (item.HasTag("/shield/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.Good: skill.Train(4); break;     // Successful in making a Shield.
+						case ProgressResult.Finish: skill.Train(5); break;   // Completed making a Shield 100%.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank == SkillRank.R7)
+			{
+				if (item.HasTag("/armor/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Achieve a great result forging armor.
+						case ProgressResult.Good: skill.Train(2); break;     // Achieve a good result forging armor.
+						case ProgressResult.Finish: skill.Train(3); break;   // Successfully forge armor.
+					}
+				}
+				else if (item.HasTag("/helmet/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.Good: skill.Train(4); break;     // Achieve a good result forging a helmet.
+						case ProgressResult.Finish: skill.Train(5); break;   // Successfully forge a helmet.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank == SkillRank.R6)
+			{
+				if (item.HasTag("/armor/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Achieve a great result forging armor.
+						case ProgressResult.Good: skill.Train(2); break;     // Achieve a good result forging armor.
+						case ProgressResult.Finish: skill.Train(3); break;   // Successfully forge armor.
+					}
+				}
+				else if (item.HasTag("/gauntlet/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.Good: skill.Train(4); break;     // Achieve a good result forging gauntlets.
+						case ProgressResult.Finish: skill.Train(5); break;   // Successfully forge gauntlets.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank == SkillRank.R5)
+			{
+				if (item.HasTag("/armor/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Achieve a great result forging armor.
+						case ProgressResult.Good: skill.Train(2); break;     // Achieve a good result forging armor.
+						case ProgressResult.Finish: skill.Train(3); break;   // Successfully forge armor.
+					}
+				}
+				else if (item.HasTag("/armorboots/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.Good: skill.Train(4); break;     // Achieve a good result forging greaves.
+						case ProgressResult.Finish: skill.Train(5); break;   // Successfully forge greaves.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank >= SkillRank.R4 && skill.Info.Rank <= SkillRank.R3)
+			{
+				if (item.HasTag("/armor/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.VeryGood: skill.Train(1); break; // Achieve a great result forging armor.
+						case ProgressResult.Good: skill.Train(2); break;     // Achieve a good result forging armor.
+						case ProgressResult.Finish: skill.Train(3); break;   // Successfully forge armor.
+					}
+				}
+				else if (item.HasTag("/weapon/|/tool/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.Good: skill.Train(4); break;     // Achieve a good result forging a tool or a weapon.
+						case ProgressResult.Finish: skill.Train(5); break;   // Successfully forge a tool or a weapon.
+					}
+				}
+
+				return;
+			}
+
+			if (skill.Info.Rank >= SkillRank.R2 && skill.Info.Rank <= SkillRank.R1)
+			{
+				if (item.HasTag("/armor/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.Good: skill.Train(1); break;     // Achieve a good result forging armor.
+						case ProgressResult.Finish: skill.Train(2); break;   // Successfully forge armor.
+					}
+				}
+				else if (item.HasTag("/weapon/|/tool/"))
+				{
+					switch (result)
+					{
+						case ProgressResult.Good: skill.Train(3); break;     // Achieve a good result forging a tool or a weapon.
+						case ProgressResult.Finish: skill.Train(4); break;   // Successfully forge a tool or a weapon.
+					}
+				}
+
+				return;
+			}
 		}
 	}
 

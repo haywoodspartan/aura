@@ -132,11 +132,27 @@ namespace Aura.Channel.World.Entities
 		}
 
 		/// <summary>
-		/// Returns true if tag contains "/pounch/bag/".
+		/// Returns true if tag contains "/pounch/bag/" (item bags).
 		/// </summary>
 		public bool IsBag
 		{
 			get { return this.Data.HasTag("/pouch/bag/"); }
+		}
+
+		/// <summary>
+		/// Returns true if tag contains "/pouch/money/" (gold pouches).
+		/// </summary>
+		public bool IsGoldPouch
+		{
+			get { return this.Data.HasTag("/pouch/money/"); }
+		}
+
+		/// <summary>
+		/// Returns true if tag contains "/sac_item/" (gathering bags, e.g. wool pouch).
+		/// </summary>
+		public bool IsGatheringPouch
+		{
+			get { return this.Data.HasTag("/sac_item/"); }
 		}
 
 		/// <summary>
@@ -212,24 +228,29 @@ namespace Aura.Channel.World.Entities
 		public bool IsDungeonKey { get { return (this.Info.Id >= 70028 && this.Info.Id <= 70030); } }
 
 		/// <summary>
-		/// Reutrns true if item is a shield.
+		/// Returns true if item is a shield.
 		/// </summary>
 		public bool IsShield { get { return this.HasTag("/shield/"); } }
 
 		/// <summary>
-		/// Reutrns true if item is a shield or is equipped like a shield (e.g. books).
+		/// Returns true if item is a shield or is equipped like a shield (e.g. books).
 		/// </summary>
 		public bool IsShieldLike { get { return (this.IsShield || this.IsEquippableBook); } }
 
 		/// <summary>
-		/// Reutrns true if item is two handed.
+		/// Returns true if item is two handed.
 		/// </summary>
 		public bool IsTwoHand { get { return this.HasTag("/twohand/"); } }
 
 		/// <summary>
-		/// Reutnrs true if item is a book that can be equipped.
+		/// Returns true if item is a book that can be equipped.
 		/// </summary>
 		public bool IsEquippableBook { get { return this.HasTag("/equip/*/book/"); } }
+
+		/// <summary>
+		/// Returns true if item is a bow or crossbow.
+		/// </summary>
+		public bool IsBow { get { return this.HasTag("/bow/|/bow01|/crossbow/"); } }
 
 		/// <summary>
 		/// New item based on item id.
@@ -398,6 +419,25 @@ namespace Aura.Channel.World.Entities
 			//006 [................] String : 
 
 			var item = new Item(itemId);
+			item.MetaData1.SetString("prop_to_unlock", lockName);
+			if (ownerEntityId != 0)
+				item.MetaData1.SetLong("AIEXCLR", ownerEntityId);
+
+			return item;
+		}
+
+		/// <summary>
+		/// Creates a key with a specific color.
+		/// </summary>
+		/// <param name="itemId">Id of the key, e.g. 70028 for Treasure Chest Key.</param>
+		/// <param name="color">Color of the key.</param>
+		/// <param name="lockName">Name of the lock this key is for.</param>
+		/// <param name="ownerEntityId">The entity id of the person who can use this key, set to 0 to ignore.</param>
+		/// <returns></returns>
+		public static Item CreateKey(int itemId, uint color, string lockName, long ownerEntityId = 0)
+		{
+			var item = new Item(itemId);
+			item.Info.Color1 = color;
 			item.MetaData1.SetString("prop_to_unlock", lockName);
 			if (ownerEntityId != 0)
 				item.MetaData1.SetLong("AIEXCLR", ownerEntityId);

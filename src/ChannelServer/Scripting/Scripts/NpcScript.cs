@@ -368,7 +368,7 @@ namespace Aura.Channel.Scripting.Scripts
 			}
 
 			// Show relation values to devCATs for debugging
-			if (this.Player.Titles.SelectedTitle == 60001)
+			if (this.Player.Titles.SelectedTitle == TitleId.devCAT)
 			{
 				msg += "<br/>" + "Favor: " + this.Favor;
 				msg += "<br/>" + "Memory: " + this.Memory;
@@ -943,6 +943,20 @@ namespace Aura.Channel.Scripting.Scripts
 		}
 
 		/// <summary>
+		/// Trains the specified condition for skill by one.
+		/// </summary>
+		/// <param name="skillId"></param>
+		/// <param name="condition"></param>
+		protected void TrainSkill(SkillId skillId, int condition)
+		{
+			var skill = this.Player.Skills.Get(skillId);
+			if (skill == null)
+				return;
+
+			skill.Train(condition);
+		}
+
+		/// <summary>
 		/// Execute Hook! Harhar.
 		/// </summary>
 		/// <remarks>
@@ -1168,7 +1182,7 @@ namespace Aura.Channel.Scripting.Scripts
 		public bool CanDoPtj(PtjType type, int remaining = 99)
 		{
 			// Always allow devCATs
-			//if (this.Title == 60001)
+			//if (this.Title == TitleId.devCAT)
 			//	return true;
 
 			// Check remaining
@@ -1342,6 +1356,17 @@ namespace Aura.Channel.Scripting.Scripts
 		public void Notice(string format, params object[] args)
 		{
 			Send.Notice(this.Player, format, args);
+		}
+
+		/// <summary>
+		/// Displays notice.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <param name="format"></param>
+		/// <param name="args"></param>
+		public void Notice(NoticeType type, string format, params object[] args)
+		{
+			Send.Notice(this.Player, type, format, args);
 		}
 
 		/// <summary>

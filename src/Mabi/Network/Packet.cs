@@ -227,11 +227,19 @@ namespace Aura.Mabi.Network
 
 			var size = Marshal.SizeOf(val);
 			var arr = new byte[size];
-			var ptr = Marshal.AllocHGlobal(size);
 
-			Marshal.StructureToPtr(val, ptr, true);
-			Marshal.Copy(ptr, arr, 0, size);
-			Marshal.FreeHGlobal(ptr);
+			IntPtr ptr = IntPtr.Zero;
+			try
+			{
+				ptr = Marshal.AllocHGlobal(size);
+				Marshal.StructureToPtr(val, ptr, true);
+				Marshal.Copy(ptr, arr, 0, size);
+			}
+			finally
+			{
+				if (ptr != IntPtr.Zero)
+					Marshal.FreeHGlobal(ptr);
+			}
 
 			return this.PutBin(arr);
 		}
@@ -266,6 +274,8 @@ namespace Aura.Mabi.Network
 			if (this.Peek() != PacketElementType.Byte)
 				throw new Exception("Expected Byte, got " + this.Peek() + ".");
 
+			this.AssertReadable(1 + sizeof(byte));
+
 			_ptr += 1;
 			return _buffer[_ptr++];
 		}
@@ -284,6 +294,8 @@ namespace Aura.Mabi.Network
 		{
 			if (this.Peek() != PacketElementType.Short)
 				throw new Exception("Expected Short, got " + this.Peek() + ".");
+
+			this.AssertReadable(1 + sizeof(short));
 
 			_ptr += 1;
 			var val = IPAddress.HostToNetworkOrder(BitConverter.ToInt16(_buffer, _ptr));
@@ -310,6 +322,8 @@ namespace Aura.Mabi.Network
 			if (this.Peek() != PacketElementType.Int)
 				throw new Exception("Expected Int, got " + this.Peek() + ".");
 
+			this.AssertReadable(1 + sizeof(int));
+
 			_ptr += 1;
 			var val = IPAddress.HostToNetworkOrder(BitConverter.ToInt32(_buffer, _ptr));
 			_ptr += sizeof(int);
@@ -335,11 +349,22 @@ namespace Aura.Mabi.Network
 			if (this.Peek() != PacketElementType.Long)
 				throw new Exception("Expected Long, got " + this.Peek() + ".");
 
+			this.AssertReadable(1 + sizeof(long));
+
 			_ptr += 1;
 			var val = IPAddress.HostToNetworkOrder(BitConverter.ToInt64(_buffer, _ptr));
 			_ptr += sizeof(long);
 
 			return val;
+		}
+
+		/// <summary>
+		/// Reads and returns ulong from buffer.
+		/// </summary>
+		/// <returns></returns>
+		public ulong GetULong()
+		{
+			return (ulong)this.GetLong();
 		}
 
 		/// <summary>
@@ -360,9 +385,11 @@ namespace Aura.Mabi.Network
 			if (this.Peek() != PacketElementType.Float)
 				throw new Exception("Expected Float, got " + this.Peek() + ".");
 
+			this.AssertReadable(1 + sizeof(float));
+
 			_ptr += 1;
 			var val = BitConverter.ToSingle(_buffer, _ptr);
-			_ptr += 4;
+			_ptr += sizeof(float);
 
 			return val;
 		}
@@ -376,9 +403,13 @@ namespace Aura.Mabi.Network
 			if (this.Peek() != PacketElementType.String)
 				throw new ArgumentException("Expected String, got " + this.Peek() + ".");
 
+			this.AssertReadable(1 + sizeof(short));
+
 			_ptr += 1;
 			var len = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(_buffer, _ptr));
-			_ptr += 2;
+			_ptr += sizeof(short);
+
+			this.AssertReadable(len);
 
 			var val = Encoding.UTF8.GetString(_buffer, _ptr, len - 1);
 			_ptr += len;
@@ -395,9 +426,13 @@ namespace Aura.Mabi.Network
 			if (this.Peek() != PacketElementType.Bin)
 				throw new ArgumentException("Expected Bin, got " + this.Peek() + ".");
 
+			this.AssertReadable(1 + sizeof(short));
+
 			_ptr += 1;
 			var len = IPAddress.NetworkToHostOrder(BitConverter.ToInt16(_buffer, _ptr));
-			_ptr += 2;
+			_ptr += sizeof(short);
+
+			this.AssertReadable(len);
 
 			var val = new byte[len];
 			Buffer.BlockCopy(_buffer, _ptr, val, 0, len);
@@ -418,13 +453,32 @@ namespace Aura.Mabi.Network
 				throw new Exception("GetObj can only marshal to structs.");
 
 			var buffer = this.GetBin();
+			object val;
 
-			IntPtr intPtr = Marshal.AllocHGlobal(buffer.Length);
-			Marshal.Copy(buffer, 0, intPtr, buffer.Length);
-			var val = Marshal.PtrToStructure(intPtr, typeof(T));
-			Marshal.FreeHGlobal(intPtr);
+			IntPtr intPtr = IntPtr.Zero;
+			try
+			{
+				intPtr = Marshal.AllocHGlobal(buffer.Length);
+				Marshal.Copy(buffer, 0, intPtr, buffer.Length);
+				val = Marshal.PtrToStructure(intPtr, typeof(T));
+			}
+			finally
+			{
+				if (intPtr != IntPtr.Zero)
+					Marshal.FreeHGlobal(intPtr);
+			}
 
 			return (T)val;
+		}
+
+		/// <summary>
+		/// Throws exception, if buffer doesn't have the given amount of bytes left.
+		/// </summary>
+		/// <param name="byteCount"></param>
+		private void AssertReadable(int byteCount)
+		{
+			if (_ptr + byteCount > _buffer.Length)
+				throw new IndexOutOfRangeException("Buffer doesn't have enough bytes left.");
 		}
 
 		/// <summary>

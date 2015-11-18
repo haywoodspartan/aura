@@ -3,6 +3,7 @@
 
 using Aura.Channel.Network.Sending;
 using Aura.Channel.Skills.Base;
+using Aura.Channel.World;
 using Aura.Channel.World.Entities;
 using Aura.Data;
 using Aura.Data.Database;
@@ -68,9 +69,6 @@ namespace Aura.Channel.Skills.Base
 		/// </example>
 		public bool Prepare(Creature creature, Skill skill, Packet packet)
 		{
-			if (!this.CheckTools(creature, skill))
-				return false;
-
 			var unkByte = packet.GetByte();
 			var propEntityId = 0L;
 			var unkInt = 0;
@@ -101,15 +99,32 @@ namespace Aura.Channel.Skills.Base
 				materials.Add(new ProductionMaterial(item, amount));
 			}
 
+			// Get product data
+			var potentialProducts = AuraData.ProductionDb.Find(category, productId);
+			if (potentialProducts.Length == 0)
+			{
+				Send.ServerMessage(creature, "Unknown product.");
+				return false;
+			}
+			var productData = potentialProducts[0];
+
+			// Check tools
+			if (!this.CheckTools(creature, skill, productData))
+				return false;
+
 			// Check prop
 			if (!this.CheckProp(creature, propEntityId))
+				return false;
+
+			// Check mana
+			if (!this.CheckMana(creature, productData))
 				return false;
 
 			// Give skills the ability to use motions and other things.
 			this.OnUse(creature, skill);
 
 			// Response
-			Send.SkillUse(creature, skill.Info.Id, unkByte, propEntityId, unkInt, productId, unkShort1, category, amountToProduce, materials);
+			Send.Echo(creature, Op.SkillUse, packet);
 			skill.State = SkillState.Used;
 
 			return true;
@@ -186,24 +201,18 @@ namespace Aura.Channel.Skills.Base
 			// Get reference product for checks and mats
 			var productData = potentialProducts[0];
 
-			// Check tool
-			// Sanity check, the client should be handling this.
-			if (productData.Tool != null)
+			// Check tools
+			if (!this.CheckTools(creature, skill, productData))
+				goto L_Fail;
+
+			// Check mana
+			if (!this.CheckMana(creature, productData))
+				goto L_Fail;
+
+			if (productData.Mana > 0)
 			{
-				// TODO: Check durability? What happens if tool is unusable?
-				if (creature.RightHand == null || !creature.RightHand.HasTag(productData.Tool))
-				{
-					Log.Warning("ProductionSkill.Complete: Creature '{0:X16}' tried to produce without the appropriate tool.", creature.EntityId);
-					goto L_Fail;
-				}
-			}
-			else
-			{
-				if (creature.RightHand != null)
-				{
-					Log.Warning("ProductionSkill.Complete: Creature '{0:X16}' tried to produce without empty hands.", creature.EntityId);
-					goto L_Fail;
-				}
+				creature.Mana -= productData.Mana;
+				Send.StatUpdate(creature, StatUpdateType.Private, Stat.Mana);
 			}
 
 			// Check materials
@@ -215,9 +224,15 @@ namespace Aura.Channel.Skills.Base
 				// Check all selected items for tag matches
 				foreach (var material in materials)
 				{
+					// Check item and stack item for tag, pouches can be put
+					// into the window, reducing the contained items.
+					var match =
+						material.Item.HasTag(reqMat.Tag) ||
+						(material.Item.IsGatheringPouch && material.Item.Data.StackItem != null && material.Item.Data.StackItem.HasTag(reqMat.Tag));
+
 					// Satisfy requirement with item, up to the max amount
 					// needed or available
-					if (material.Item.HasTag(reqMat.Tag))
+					if (match)
 					{
 						// Cancel if one item matches multiple materials.
 						// It's unknown how this would be handled, can it even
@@ -256,28 +271,11 @@ namespace Aura.Channel.Skills.Base
 			var rnd = RandomProvider.Get();
 			var success = (rnd.Next(100) < chance);
 
-			// Update tool's durability and proficiency
-			if (productData.Tool != null)
+			// Select random product
+			// Do this here, so we have the data for skill training,
+			// no matter the outcome.
+			if (potentialProducts.Length > 1)
 			{
-				creature.Inventory.ReduceDurability(creature.RightHand, productData.Durability);
-				creature.Inventory.AddProficiency(creature.RightHand, Proficiency);
-			}
-
-			// Skill training
-			this.SkillTraining(creature, skill, productData, success);
-
-			// Reduce mats
-			foreach (var material in toReduce)
-			{
-				// On fail you lose 0~amount of materials randomly
-				var reduce = success ? material.Amount : rnd.Next(0, material.Amount + 1);
-				if (reduce > 0)
-					creature.Inventory.Decrement(material.Item, (ushort)reduce);
-			}
-
-			if (success)
-			{
-				// Select random product
 				var itemId = 0;
 				var num = rnd.NextDouble() * baseChance;
 				var n = 0.0;
@@ -287,6 +285,7 @@ namespace Aura.Channel.Skills.Base
 					if (num <= n)
 					{
 						itemId = potentialProduct.ItemId;
+						productData = potentialProduct;
 						break;
 					}
 				}
@@ -298,35 +297,74 @@ namespace Aura.Channel.Skills.Base
 					Send.ServerMessage(creature, "Failed to generate product.");
 					goto L_Fail;
 				}
+			}
 
+			// Update tool's durability and proficiency
+			this.UpdateTool(creature, productData);
+
+			// Skill training
+			this.SkillTraining(creature, skill, productData, success);
+
+			// Reduce mats
+			foreach (var material in toReduce)
+			{
+				// On fail of non-queued productions you lose 1~amount of
+				// materials randomly
+				var reduce = (success || amountToProduce > 1) ? material.Amount : rnd.Next(1, material.Amount + 1);
+				if (reduce > 0)
+					creature.Inventory.Decrement(material.Item, (ushort)reduce);
+			}
+
+			if (success)
+			{
 				// Check item
 				var productItemData = AuraData.ItemDb.Find(productData.ItemId);
 				if (productItemData == null)
 				{
-					Log.Error("ProductionSkill.Complete: Unknown product item '{0}'.", itemId);
+					Log.Error("ProductionSkill.Complete: Unknown product item '{0}'.", productData.ItemId);
 					Send.ServerMessage(creature, "Unknown product item.");
 					goto L_Fail;
 				}
 
 				// Create product
-				var productItem = new Item(itemId);
+				var productItem = new Item(productData.ItemId);
 				productItem.Amount = productData.Amount;
 
 				// Add product to inventory
 				creature.Inventory.Insert(productItem, true);
 
+				// Material creation event
+				ChannelServer.Instance.Events.OnCreatureProducedItem(new ProductionEventArgs(creature, productData, true, productItem));
+
 				// Success
 				Send.UseMotion(creature, 14, 0); // Success motion
 				Send.Notice(creature, Localization.Get("{0} created successfully!"), productItem.Data.Name);
-				Send.SkillComplete(creature, skill.Info.Id, unkByte, propEntityId, unkInt, productId, unkShort, category, amountToProduce, materials);
+				Send.Echo(creature, Op.SkillComplete, packet);
 
 				return;
 			}
 
+			// Material creation event
+			ChannelServer.Instance.Events.OnCreatureProducedItem(new ProductionEventArgs(creature, productData, false, null));
+
 		L_Fail:
 			// Unofficial
 			Send.UseMotion(creature, 14, 3); // Fail motion
-			Send.SkillComplete(creature, skill.Info.Id, unkByte, propEntityId, unkInt, productId, unkShort, category, amountToProduce, materials);
+			Send.Echo(creature, Op.SkillComplete, packet);
+		}
+
+		/// <summary>
+		/// Updates tool's durability and proficiency.
+		/// </summary>
+		/// <param name="creature"></param>
+		/// <param name="productData"></param>
+		protected virtual void UpdateTool(Creature creature, ProductionData productData)
+		{
+			if (productData.Tool == null)
+				return;
+
+			creature.Inventory.ReduceDurability(creature.RightHand, productData.Durability);
+			creature.Inventory.AddProficiency(creature.RightHand, Proficiency);
 		}
 
 		/// <summary>
@@ -334,9 +372,31 @@ namespace Aura.Channel.Skills.Base
 		/// </summary>
 		/// <param name="creature"></param>
 		/// <param name="skill"></param>
+		/// <param name="productData"></param>
 		/// <returns></returns>
-		protected virtual bool CheckTools(Creature creature, Skill skill)
+		protected virtual bool CheckTools(Creature creature, Skill skill, ProductionData productData)
 		{
+			// Check tool
+			// Sanity check, the client should be handling this.
+			if (productData.Tool != null)
+			{
+				if (creature.RightHand == null || !creature.RightHand.HasTag(productData.Tool))
+				{
+					Log.Warning("ProductionSkill.Complete: Creature '{0:X16}' tried to produce without the appropriate tool.", creature.EntityId);
+					return false;
+				}
+			}
+			else
+			{
+				if (creature.RightHand != null)
+				{
+					Log.Warning("ProductionSkill.Complete: Creature '{0:X16}' tried to produce without empty hands.", creature.EntityId);
+					return false;
+				}
+			}
+
+			// TODO: Check durability? What happens if tool is unusable?
+
 			return true;
 		}
 
@@ -356,6 +416,25 @@ namespace Aura.Channel.Skills.Base
 		/// <returns></returns>
 		protected virtual bool CheckProp(Creature creature, long propEntityId)
 		{
+			return true;
+		}
+
+		/// <summary>
+		/// Checks if creature has enough mana to produce product,
+		/// returns false if not. Handles notices.
+		/// </summary>
+		/// <param name="creature"></param>
+		/// <param name="productData"></param>
+		/// <returns></returns>
+		private bool CheckMana(Creature creature, ProductionData productData)
+		{
+			// Sanity check, client checks this as well.
+			if (creature.Mana < productData.Mana)
+			{
+				Send.Notice(creature, Localization.Get("You do not have enough MP to make that many at once."));
+				return false;
+			}
+
 			return true;
 		}
 

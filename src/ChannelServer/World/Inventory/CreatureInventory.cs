@@ -571,7 +571,7 @@ namespace Aura.Channel.World.Inventory
 
 					// Notify everybout receiving the items in the sac.
 					if (newItem.Data.StackType == StackType.Sac)
-						ChannelServer.Instance.Events.OnPlayerReceivesItem(_creature, newItem.Data.StackItem, newItem.Info.Amount);
+						ChannelServer.Instance.Events.OnPlayerReceivesItem(_creature, newItem.Data.StackItemId, newItem.Info.Amount);
 				}
 
 				success = (insertSuccess || newItem.Info.Amount == 0);
@@ -1136,17 +1136,15 @@ namespace Aura.Channel.World.Inventory
 					return;
 			}
 
-			// Don't remove if combination is valid, this should allow weapons
-			// to be switched while having a shield equipped.
-			// Combinations of righthand/lefthand are (always?) valid,
-			// unless it involves bows and their ammunition.
-			if (item.HasTag("/righthand/") && leftItem.HasTag("/lefthand/"))
+			// Special handling of shield-likes (shields, books, etc)
+			if (leftItem.IsShieldLike)
 			{
-				// TODO: This check sucks. And it feels like it needs to be
-				//   turned around, isn't everything unequipped, except for
-				//   shields? Is there anything else that can be equipped
-				//   without a right-hand counterpart?
-				if (!item.HasTag("/bow/|/crossbow/|/tailor/kit/") && !leftItem.HasTag("/arrow/|/bolt/|/tailor/manual/"))
+				// If right hand item is something that can be combined with
+				// a shield, the unequipping must be canceled. Things that
+				// don't go with shields include bows and 2H weapons,
+				// possibly more.
+				// TODO: Is there a better way to check this?
+				if (!item.IsBow && !item.IsTwoHand)
 					return;
 			}
 
@@ -1239,7 +1237,7 @@ namespace Aura.Channel.World.Inventory
 		/// <returns></returns>
 		public int GetEquipmentDefense()
 		{
-			return _pockets.Values.Where(a => (a.Pocket >= Pocket.Armor && a.Pocket <= Pocket.Robe) || (a.Pocket >= Pocket.Accessory1 && a.Pocket <= Pocket.Accessory2))
+			return _pockets.Values.Where(a => (a.Pocket >= Pocket.Armor && a.Pocket <= Pocket.Robe) || (a.Pocket >= Pocket.Accessory1 && a.Pocket <= Pocket.Accessory2) || a.Pocket == RightHandPocket || a.Pocket == LeftHandPocket)
 				.SelectMany(pocket => pocket.Items.Where(a => a != null))
 				.Sum(item => item.OptionInfo.Defense);
 		}
@@ -1250,7 +1248,7 @@ namespace Aura.Channel.World.Inventory
 		/// <returns></returns>
 		public int GetEquipmentProtection()
 		{
-			return _pockets.Values.Where(a => (a.Pocket >= Pocket.Armor && a.Pocket <= Pocket.Robe) || (a.Pocket >= Pocket.Accessory1 && a.Pocket <= Pocket.Accessory2))
+			return _pockets.Values.Where(a => (a.Pocket >= Pocket.Armor && a.Pocket <= Pocket.Robe) || (a.Pocket >= Pocket.Accessory1 && a.Pocket <= Pocket.Accessory2) || a.Pocket == RightHandPocket || a.Pocket == LeftHandPocket)
 				.SelectMany(pocket => pocket.Items.Where(a => a != null))
 				.Sum(item => item.OptionInfo.Protection);
 		}

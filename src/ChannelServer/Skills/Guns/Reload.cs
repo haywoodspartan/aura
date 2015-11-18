@@ -100,6 +100,8 @@ namespace Aura.Channel.Skills.Guns
 		/// <returns></returns>
 		public bool Ready(Creature creature, Skill skill, Packet packet)
 		{
+			creature.StopMove();
+
 			// Following Packet Data for Stacks... DevCat why?
 			skill.Stacks = 1;
 			skill.Stacks = 0;

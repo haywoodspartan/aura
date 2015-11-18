@@ -140,7 +140,7 @@ namespace Aura.Channel.Skills.Guns
 				newAttackerPos = attackerPos.GetRelative(targetAreaPos, ((int)extraDistance * -1));
 			}
 
-			var unkPacket3 = new Packet(0x7534, attacker.EntityId);
+			var unkPacket3 = new Packet(0x7534, attacker.EntityId); // ?
 			unkPacket3.PutByte(0).PutByte(0).PutByte(0);
 			attacker.Region.Broadcast(unkPacket3, attacker);
 
@@ -271,7 +271,7 @@ namespace Aura.Channel.Skills.Guns
 			aAction.Creature.Stun = aAction.Stun;
 			cap.Handle();
 
-			var unkPacket2 = new Packet(0x7534, attacker.EntityId);
+			var unkPacket2 = new Packet(0x7534, attacker.EntityId); // ?
 			unkPacket2.PutByte(0).PutByte(0).PutByte(0);
 			attacker.Region.Broadcast(unkPacket2, attacker);
 
@@ -310,6 +310,7 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="skill"></param>
 		public void Cancel(Creature creature, Skill skill)
 		{
+			Send.MotionCancel2(creature, 0);
 		}
 
 		private Point RotatePoint(Point point, Point pivot, double radians)

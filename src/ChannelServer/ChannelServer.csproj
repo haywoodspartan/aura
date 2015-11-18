@@ -176,6 +176,7 @@
     <Compile Include="Skills\Combat\SuperWindmill.cs" />
     <Compile Include="Skills\Combat\Windmill.cs" />
     <Compile Include="Skills\Guns\BulletSlide.cs" />
+    <Compile Include="Skills\Guns\BulletStorm.cs" />
     <Compile Include="Skills\Guns\DualGunMastery.cs" />
     <Compile Include="Skills\Guns\FlashLauncher.cs" />
     <Compile Include="Skills\Guns\GrappleShot.cs" />

@@ -134,7 +134,7 @@ namespace Aura.Channel.Skills.Guns
 				prevId = cap.Id;
 
 				// Prepare Combat Actions
-				var aAction = new AttackerAction(CombatActionType.RangeHit, attacker, skill.Info.Id, targetEntityId);
+				var aAction = new AttackerAction(CombatActionType.RangeHit, attacker, targetEntityId);
 				aAction.Set(AttackerOptions.Result | AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
 
 				var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);

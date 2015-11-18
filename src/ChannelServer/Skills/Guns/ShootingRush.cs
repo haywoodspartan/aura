@@ -181,7 +181,7 @@ namespace Aura.Channel.Skills.Guns
 			// Prepare Combat Actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
 
-			var aAction = new AttackerAction(CombatActionType.SpecialHit, attacker, skill.Info.Id, targetAreaId);
+			var aAction = new AttackerAction(CombatActionType.SpecialHit, attacker, targetAreaId);
 			aAction.Set(AttackerOptions.UseEffect | AttackerOptions.KnockBackHit1);
 			cap.Add(aAction);
 

@@ -129,6 +129,7 @@ namespace Aura.Channel.Skills.Guns
 			{
 				Send.Notice(attacker, Localization.Get("Invalid Target"));
 				Send.SkillUseSilentCancel(attacker);
+				attacker.Unlock(Locks.All);
 				return;
 			}
 
@@ -138,6 +139,7 @@ namespace Aura.Channel.Skills.Guns
 			{
 				Send.Notice(attacker, Localization.Get("You are too far away."));
 				Send.SkillUseSilentCancel(attacker);
+				attacker.Unlock(Locks.All);
 				return;
 			}
 
@@ -175,7 +177,7 @@ namespace Aura.Channel.Skills.Guns
 			cap.Add(aAction, tAction);
 
 			// Damage
-			var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f)) * 4;
+			var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f)) * tAction.MultiHitDamageCount;
 
 			// Critical Hit
 			var dgm = attacker.Skills.Get(SkillId.DualGunMastery);

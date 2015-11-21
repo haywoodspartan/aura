@@ -149,6 +149,7 @@ namespace Aura.Channel.Skills.Guns
 
 			// Position calculations
 			attacker.StopMove();
+			attacker.Lock(Locks.Walk | Locks.Run);
 			var attackerPos = attacker.GetPosition();
 			var targetPos = target.GetPosition();
 			var distanceFrom = attackerPos.GetDistance(targetPos) - 50;
@@ -183,9 +184,6 @@ namespace Aura.Channel.Skills.Guns
 			// Remove Conditions
 			attacker.Conditions.Deactivate(ConditionsD.Steadfast);
 			attacker.Conditions.Deactivate(ConditionsC.FastMove);
-
-			// Complete
-			Send.SkillComplete(attacker, skill.Info.Id);
 
 			// Prepare Combat Actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
@@ -275,6 +273,14 @@ namespace Aura.Channel.Skills.Guns
 				attacker.RightHand.MetaData1.SetShort(BulletCountTag, bulletCount);
 				Send.ItemUpdate(attacker, attacker.RightHand);
 			}
+
+			Send.SkillComplete(attacker, skill.Info.Id);
+
+			var unkPacket1 = new Packet(0xA43B, attacker.EntityId);
+			unkPacket1.PutShort(0).PutInt(0);
+			attacker.Region.Broadcast(unkPacket1, attacker);
+
+			attacker.Unlock(Locks.All);
 		}
 
 		/// <summary>

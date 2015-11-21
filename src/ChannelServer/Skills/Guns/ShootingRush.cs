@@ -83,6 +83,7 @@ namespace Aura.Channel.Skills.Guns
 			creature.StopMove();
 			Send.UseMotion(creature, 131, 5, true, false);
 			Send.Effect(creature, Effect.SkillInit, "flashing");
+
 			Send.SkillPrepare(creature, skill.Info.Id, skill.GetCastTime());
 
 			return true;
@@ -140,18 +141,14 @@ namespace Aura.Channel.Skills.Guns
 				newAttackerPos = attackerPos.GetRelative(targetAreaPos, ((int)extraDistance * -1));
 			}
 
-			var unkPacket3 = new Packet(0x7534, attacker.EntityId); // ?
-			unkPacket3.PutByte(0).PutByte(0).PutByte(0);
-			attacker.Region.Broadcast(unkPacket3, attacker);
-
 			// Effects & Etc
 			Send.Effect(attacker, 335, (byte)1, (byte)1, (short)131, (short)6, 1599, (byte)6, (short)66, (short)233, (short)500, (short)700, (short)966, (short)1166);
 			Send.MotionCancel2(attacker, 0);
 			Send.UseMotion(attacker, 131, 6, false, false);
 
-			var unkPacket1 = new Packet(0x6D64, attacker.EntityId); // ?
-			unkPacket1.PutInt(1599).PutInt(131).PutInt(7).PutByte(0).PutShort(0);
-			attacker.Region.Broadcast(unkPacket1, attacker);
+			var unkPacket2 = new Packet(0x6D64, attacker.EntityId); // ?
+			unkPacket2.PutInt(1599).PutInt(131).PutInt(7).PutByte(0).PutShort(0);
+			attacker.Region.Broadcast(unkPacket2, attacker);
 
 			Send.Effect(attacker, 329, (byte)1, (byte)0);
 			attacker.Conditions.Activate(ConditionsD.Steadfast);
@@ -164,19 +161,20 @@ namespace Aura.Channel.Skills.Guns
 			var attackerPoint = new Point(attackerPos.X, attackerPos.Y);
 			var newAttackerPoint = new Point(newAttackerPos.X, newAttackerPos.Y);
 
-			// Calculate Points 1 & 2
 			var pointDist = Math.Sqrt((distance * distance) + (radius * radius)); // Pythagorean Theorem - Distance between point and opposite side's center.
-			var p1PosTemp = attackerPos.GetRelative(newAttackerPos, (int)pointDist);
-			var p1PointTemp = new Point(p1PosTemp.X, p1PosTemp.Y);
 			var rotationAngle = Math.Asin(radius / pointDist);
-			var p1 = this.RotatePoint(p1PointTemp, attackerPoint, rotationAngle); // Rotate Positive - moves point to position where distance from newAttackerPos is range and Distance from attackerPos is pointDist.
-			var p2 = this.RotatePoint(p1PointTemp, attackerPoint, (rotationAngle * -1)); // Rotate Negative - moves point to opposite side of p1
+
+			// Calculate Points 1 & 2
+			var posTemp1 = attackerPos.GetRelative(newAttackerPos, (int)pointDist);
+			var pointTemp1 = new Point(posTemp1.X, posTemp1.Y);
+			var p1 = this.RotatePoint(pointTemp1, attackerPoint, rotationAngle); // Rotate Positive - moves point to position where distance from newAttackerPos is range and Distance from attackerPos is pointDist.
+			var p2 = this.RotatePoint(pointTemp1, attackerPoint, (rotationAngle * -1)); // Rotate Negative - moves point to opposite side of p1
 
 			// Calculate Points 3 & 4
-			var p2PosTemp = newAttackerPos.GetRelative(attackerPos, (int)pointDist);
-			var p2PointTemp = new Point(p2PosTemp.X, p2PosTemp.Y);
-			var p3 = this.RotatePoint(p2PointTemp, newAttackerPoint, rotationAngle); // Rotate Positive
-			var p4 = this.RotatePoint(p2PointTemp, newAttackerPoint, (rotationAngle * -1)); // Rotate Negative
+			var posTemp2 = newAttackerPos.GetRelative(attackerPos, (int)pointDist);
+			var pointTemp2 = new Point(posTemp2.X, posTemp2.Y);
+			var p3 = this.RotatePoint(pointTemp2, newAttackerPoint, rotationAngle); // Rotate Positive
+			var p4 = this.RotatePoint(pointTemp2, newAttackerPoint, (rotationAngle * -1)); // Rotate Negative
 
 			// Prepare Combat Actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
@@ -191,7 +189,7 @@ namespace Aura.Channel.Skills.Guns
 			var shootEffect = new Packet(Op.Effect, attacker.EntityId);
 			shootEffect.PutInt(339).PutShort((short)skill.Info.Id).PutInt(0);
 
-			var bulletDist = 0; // Unofficial
+			var bulletDist = 0;
 
 			// Get targets in descending order of distance for the effect packet
 			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).ToList();
@@ -211,7 +209,7 @@ namespace Aura.Channel.Skills.Guns
                 cap.Add(tAction);
 
 				// Damage
-				var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f)) * 4;
+				var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f)) * tAction.MultiHitDamageCount;
 
 				// Master Title
 				if (attacker.Titles.SelectedTitle == 10917)
@@ -270,10 +268,6 @@ namespace Aura.Channel.Skills.Guns
 			}
 			aAction.Creature.Stun = aAction.Stun;
 			cap.Handle();
-
-			var unkPacket2 = new Packet(0x7534, attacker.EntityId); // ?
-			unkPacket2.PutByte(0).PutByte(0).PutByte(0);
-			attacker.Region.Broadcast(unkPacket2, attacker);
 
 			Send.SkillUse(attacker, skill.Info.Id, targetAreaId, 0, 1);
 			skill.Stacks = 0;

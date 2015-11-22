@@ -114,10 +114,11 @@ namespace Aura.Channel.Skills.Guns
 			var target = attacker.Region.GetCreature(targetEntityId);
 
 			// Check Target
-			if (target == null)
+			if (target == null || target.IsDead)
 			{
 				Send.Notice(attacker, Localization.Get("Invalid Target"));
 				Send.SkillUseSilentCancel(attacker);
+				attacker.Unlock(Locks.Walk | Locks.Run);
 				return;
 			}
 
@@ -134,6 +135,7 @@ namespace Aura.Channel.Skills.Guns
 					// You are too close
 					Send.Notice(attacker, Localization.Get("You are too close to the target."));
 					Send.SkillUseSilentCancel(attacker);
+					attacker.Unlock(Locks.Walk | Locks.Run);
 					return;
 				}
 			}
@@ -142,6 +144,7 @@ namespace Aura.Channel.Skills.Guns
 				// You are too far
 				Send.Notice(attacker, Localization.Get("You are too far away."));
 				Send.SkillUseSilentCancel(attacker);
+				attacker.Unlock(Locks.Walk | Locks.Run);
 				return;
 			}
 
@@ -223,10 +226,10 @@ namespace Aura.Channel.Skills.Guns
 
 				// Aggro
 				target.Aggro(attacker);
+
+				tAction.Stun = TargetStun;
 			}
 
-			// Stun Times
-			tAction.Stun = TargetStun;
 			aAction.Stun = AttackerStun;
 
 			// Death or Knockback
@@ -234,6 +237,7 @@ namespace Aura.Channel.Skills.Guns
 			{
 				tAction.Set(TargetOptions.FinishingKnockDown);
 				attacker.Shove(target, KnockbackDistance);
+				cap.Handle(); // The cap.Handle condition below doesn't apply to dead enemies.
 			}
 			else
 			{
@@ -274,13 +278,27 @@ namespace Aura.Channel.Skills.Guns
 				Send.ItemUpdate(attacker, attacker.RightHand);
 			}
 
-			Send.SkillComplete(attacker, skill.Info.Id);
+			this.Complete(attacker, skill, packet);
 
 			var unkPacket1 = new Packet(0xA43B, attacker.EntityId);
 			unkPacket1.PutShort(0).PutInt(0);
 			attacker.Region.Broadcast(unkPacket1, attacker);
+		}
 
-			attacker.Unlock(Locks.All);
+		/// <summary>
+		/// Completes the skill
+		/// </summary>
+		/// <param name="creature"></param>
+		/// <param name="skill"></param>
+		/// <param name="packet"></param>
+		public void Complete(Creature creature, Skill skill, Packet packet)
+		{
+			Send.SkillComplete(creature, skill.Info.Id);
+			skill.State = SkillState.Completed;
+
+			creature.Skills.ActiveSkill = null;
+
+			creature.Unlock(Locks.Walk | Locks.Run);
 		}
 
 		/// <summary>

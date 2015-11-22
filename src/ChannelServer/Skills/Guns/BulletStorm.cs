@@ -177,16 +177,17 @@ namespace Aura.Channel.Skills.Guns
 			// Get targets in descending order for effect packet using bulletDist
 			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).ToList();
 
-			// Filter by max targets and bullet count
+			// Filter by max targets [var5] and bullet count
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
 			var maxTargetsBulletCount = (int)Math.Floor((decimal)(bulletCount / 4));
-			if (maxTargetsBulletCount < skill.RankData.Var2)
+
+			if (maxTargetsBulletCount < skill.RankData.Var5)
 			{
 				targets = targets.Take(maxTargetsBulletCount).ToList();
 			}
-			else if (maxTargetsBulletCount >= skill.RankData.Var2)
+			else if (maxTargetsBulletCount >= skill.RankData.Var5)
 			{
-				targets = targets.Take((int)skill.RankData.Var2).ToList();
+				targets = targets.Take((int)skill.RankData.Var5).ToList();
 			}
 
 			// Add Target count to effect packet
@@ -292,13 +293,28 @@ namespace Aura.Channel.Skills.Guns
 			}
 
 			Send.UseMotion(attacker, 131, 4, false, false);
-			Send.SkillComplete(attacker, skill.Info.Id);
+
+			this.Complete(attacker, skill, packet);
 
 			var unkPacket1 = new Packet(0xA43B, attacker.EntityId);
 			unkPacket1.PutShort(0).PutInt(0);
 			attacker.Region.Broadcast(unkPacket1, attacker);
+		}
 
-			attacker.Unlock(Locks.All);
+		/// <summary>
+		/// Completes the skill
+		/// </summary>
+		/// <param name="creature"></param>
+		/// <param name="skill"></param>
+		/// <param name="packet"></param>
+		public void Complete(Creature creature, Skill skill, Packet packet)
+		{
+			Send.SkillComplete(creature, skill.Info.Id);
+			skill.State = SkillState.Completed;
+
+			creature.Skills.ActiveSkill = null;
+
+			creature.Unlock(Locks.Walk | Locks.Run);
 		}
 
 		/// <summary>

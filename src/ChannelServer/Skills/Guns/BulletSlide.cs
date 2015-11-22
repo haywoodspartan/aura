@@ -129,7 +129,7 @@ namespace Aura.Channel.Skills.Guns
 			{
 				Send.Notice(attacker, Localization.Get("Invalid Target"));
 				Send.SkillUseSilentCancel(attacker);
-				attacker.Unlock(Locks.All);
+				attacker.Unlock(Locks.Walk | Locks.Run);
 				return;
 			}
 
@@ -139,7 +139,7 @@ namespace Aura.Channel.Skills.Guns
 			{
 				Send.Notice(attacker, Localization.Get("You are too far away."));
 				Send.SkillUseSilentCancel(attacker);
-				attacker.Unlock(Locks.All);
+				attacker.Unlock(Locks.Walk | Locks.Run);
 				return;
 			}
 

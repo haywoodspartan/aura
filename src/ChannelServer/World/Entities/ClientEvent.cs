@@ -37,6 +37,17 @@ namespace Aura.Channel.World.Entities
 		public EventData Data { get; private set; }
 
 		/// <summary>
+		/// Global name, consisting of region, area, and event name.
+		/// </summary>
+		/// <remarks>
+		/// Not necessarily unique, the last part, the event name might be empty.
+		/// </remarks>
+		/// <example>
+		/// Tin_Beginner_Tutorial/_Tin_Beginner_Tutorial_01/tuto_start
+		/// </example>
+		public string GlobalName { get; private set; }
+
+		/// <summary>
 		/// Shapes of this event.
 		/// </summary>
 		public List<Point[]> Shapes { get; private set; }
@@ -50,12 +61,13 @@ namespace Aura.Channel.World.Entities
 		/// Creates new client event
 		/// </summary>
 		/// <param name="eventData"></param>
-		public ClientEvent(long id, EventData eventData)
+		public ClientEvent(EventData eventData, string regionName, string areaName)
 		{
 			this.Shapes = new List<Point[]>();
 
-			this.EntityId = id;
+			this.EntityId = eventData.Id;
 			this.Data = eventData;
+			this.GlobalName = string.Format("{0}/{1}/{2}", regionName, areaName, eventData.Name);
 
 			this.Handlers = new Collection<SignalType, Action<Creature, EventData>>();
 

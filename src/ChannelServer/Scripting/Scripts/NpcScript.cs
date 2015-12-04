@@ -1514,9 +1514,7 @@ namespace Aura.Channel.Scripting.Scripts
 				return result;
 			}
 
-			// Take gold
 			result.HadGold = true;
-			this.Gold -= cost;
 
 			// TODO: Luck?
 
@@ -1678,25 +1676,70 @@ namespace Aura.Channel.Scripting.Scripts
 						result.Item.MetaData1.SetFloat("MPROT", Math2.Clamp(0, int.MaxValue, mprot + effect.Value[0]));
 						break;
 
+					case "ManaUse":
+						// WU:s:00000003000000
+						var manaUseWU = new WUUpgrades(result.Item.MetaData1.GetString("WU"));
+						manaUseWU.ManaUse += (sbyte)effect.Value[0];
+						result.Item.MetaData1.SetString("WU", manaUseWU.ToString());
+						break;
+
+					case "ChainCast":
+						// Chain Casting: +4, Magic Attack: +21
+						// EHLV:4:5;MTWR:1:1;OWNER:s:username;WU:s:30201400000015;
+						var chainCastWU = new WUUpgrades(result.Item.MetaData1.GetString("WU"));
+						chainCastWU.ChainCastSkillId = (ushort)effect.Value[0];
+						chainCastWU.ChainCastLevel = (byte)effect.Value[1];
+						result.Item.MetaData1.SetString("WU", chainCastWU.ToString());
+						break;
+
+					case "MagicDamage":
+						// Charging Speed: +12%, MA: +16
+						// EHLV:4:5;MTWR:1:1;OWNER:s:username;WU:s:00000000000c10;
+						var magicDmgWU = new WUUpgrades(result.Item.MetaData1.GetString("WU"));
+						magicDmgWU.MagicDamage += (sbyte)effect.Value[0];
+						result.Item.MetaData1.SetString("WU", magicDmgWU.ToString());
+						break;
+
+					case "CastingSpeed":
+						// Charging Speed: +12%, MA: +16
+						// EHLV:4:5;MTWR:1:1;OWNER:s:username;WU:s:00000000000c10;
+						var castingSpeedWU = new WUUpgrades(result.Item.MetaData1.GetString("WU"));
+						castingSpeedWU.CastingSpeed += (sbyte)effect.Value[0];
+						result.Item.MetaData1.SetString("WU", castingSpeedWU.ToString());
+						break;
+
+					case "MusicBuffBonus":
+						// MBB:4:8;MBD:4:10;MTWR:1:2;OTU:1:1;SPTEC:1:1;
+						var musicBuff = result.Item.MetaData1.GetInt("MBB");
+						result.Item.MetaData1.SetInt("MBB", musicBuff + effect.Value[0]);
+						break;
+
+					case "MusicBuffDuration":
+						// MBB:4:8;MBD:4:10;MTWR:1:2;OTU:1:1;SPTEC:1:1;
+						var musicBuffDur = result.Item.MetaData1.GetInt("MBD");
+						result.Item.MetaData1.SetInt("MBD", musicBuffDur + effect.Value[0]);
+						break;
+
 					// TODO:
 					// - CollectionSpeed
 					// - CollectionBonus
 					// - SplashRadius
-					// - ManaUse
 					// - ManaBurn
-					// - MagicDamage
-					// - CastingSpeed
 					// - LancePiercing
-					// - MusicBuffBonus
-					// - MusicBuffDuration
 					// - MaxBullets
 					// - Artisan
-					// - ChainCast
 
 					default:
 						Log.Unimplemented("Item upgrade '{0}'", effect.Key);
 						break;
 				}
+			}
+
+			// Personalization
+			if (result.Upgrade.Personalize)
+			{
+				result.Item.OptionInfo.Flags |= ItemFlags.Personalized;
+				result.Item.MetaData1.SetString("OWNER", this.Player.Name);
 			}
 
 			// Update item
@@ -1983,6 +2026,116 @@ namespace Aura.Channel.Scripting.Scripts
 		public Item Item;
 		public ItemUpgradeData Upgrade;
 		public bool Success;
+	}
+
+	/// <summary>
+	/// Upgrade information that are combined in one meta data string called "WU".
+	/// </summary>
+	public class WUUpgrades
+	{
+		private ushort _ccSkillId;
+		private byte _ccLevel;
+
+		/// <summary>
+		/// Chain Cast upgrade, affected skill id
+		/// </summary>
+		public ushort ChainCastSkillId
+		{
+			get { return _ccSkillId; }
+			set
+			{
+				if (value < 10000)
+					throw new ArgumentOutOfRangeException("Value too low");
+
+				_ccSkillId = value;
+			}
+		}
+
+		/// <summary>
+		/// Chain Cast upgrade, chain level
+		/// </summary>
+		public byte ChainCastLevel
+		{
+			get { return _ccLevel; }
+			set
+			{
+				if (value > 9)
+					throw new ArgumentOutOfRangeException("Value too big");
+
+				_ccLevel = value;
+			}
+		}
+
+		/// <summary>
+		/// Mana Consumption upgrade
+		/// </summary>
+		public sbyte ManaUse { get; set; }
+
+		/// <summary>
+		/// ?
+		/// </summary>
+		public sbyte Unknown { get; set; }
+
+		/// <summary>
+		/// Charging Speed upgrade
+		/// </summary>
+		public sbyte CastingSpeed { get; set; }
+
+		/// <summary>
+		/// Magic Attack upgrade
+		/// </summary>
+		public sbyte MagicDamage { get; set; }
+
+		/// <summary>
+		/// Creates new, nulled instance.
+		/// </summary>
+		public WUUpgrades()
+		{
+		}
+
+		/// <summary>
+		/// Creates new instance, parsing the given value.
+		/// </summary>
+		/// <param name="val"></param>
+		/// <example>
+		/// var wu = new WUUpgrades("12345603010203");
+		/// </example>
+		public WUUpgrades(string val)
+		{
+			// Null or empty is fine, just ignore
+			if (string.IsNullOrWhiteSpace(val))
+				return;
+
+			// Check length
+			if (val.Length != 14)
+				throw new ArgumentException("Value must have 14 characters");
+
+			this.ParseValue(val);
+		}
+
+		private void ParseValue(string val)
+		{
+			this.ChainCastSkillId = Convert.ToUInt16(val.Substring(0, 5));
+			this.ChainCastLevel = Convert.ToByte(val.Substring(5, 1), 16);
+			this.ManaUse = Convert.ToSByte(val.Substring(6, 2), 16);
+			this.Unknown = Convert.ToSByte(val.Substring(8, 2), 16);
+			this.CastingSpeed = Convert.ToSByte(val.Substring(10, 2), 16);
+			this.MagicDamage = Convert.ToSByte(val.Substring(12, 2), 16);
+		}
+
+		public override string ToString()
+		{
+			var result = new StringBuilder();
+
+			result.Append(this.ChainCastSkillId);
+			result.Append(this.ChainCastLevel.ToString().Substring(0, 1));
+			result.Append(this.ManaUse.ToString("x2"));
+			result.Append(this.Unknown.ToString("x2"));
+			result.Append(this.CastingSpeed.ToString("x2"));
+			result.Append(this.MagicDamage.ToString("x2"));
+
+			return result.ToString();
+		}
 	}
 
 #if __MonoCS__

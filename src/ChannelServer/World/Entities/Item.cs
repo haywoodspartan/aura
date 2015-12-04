@@ -37,6 +37,11 @@ namespace Aura.Channel.World.Entities
 		private static long _itemId = MabiId.TmpItems;
 
 		/// <summary>
+		/// List of upgrade effects.
+		/// </summary>
+		private List<UpgradeEffect> _upgrades = new List<UpgradeEffect>();
+
+		/// <summary>
 		/// Returns entity data type "Item".
 		/// </summary>
 		public override DataType DataType { get { return DataType.Item; } }
@@ -197,6 +202,18 @@ namespace Aura.Channel.World.Entities
 		}
 
 		/// <summary>
+		/// The id of the entity that "produced" this item, and the only one
+		/// who can pick it up during the protection time.
+		/// </summary>
+		public long OwnerId { get; set; }
+
+		/// <summary>
+		/// The time at which the item becomes "free for all", where not only
+		/// the owner can pick it up.
+		/// </summary>
+		public DateTime? ProtectionLimit { get; set; }
+
+		/// <summary>
 		/// Returns true if item is a able to receive proficiency.
 		/// </summary>
 		public bool IsTrainableWeapon
@@ -226,6 +243,20 @@ namespace Aura.Channel.World.Entities
 		/// dungeon in the game.
 		/// </remarks>
 		public bool IsDungeonKey { get { return (this.Info.Id >= 70028 && this.Info.Id <= 70030); } }
+
+		/// <summary>
+		/// Returns true if item is a dungeon room or boss room key.
+		/// </summary>
+		public bool IsDungeonRoomKey { get { return (this.Info.Id >= 70029 && this.Info.Id <= 70030); } }
+
+		/// <summary>
+		/// Returns true if item is a dungeon pass.
+		/// </summary>
+		/// <remarks>
+		/// Quest items that work like a dungeon pass basically are dungeon
+		/// passes, and should return true as well.
+		/// </remarks>
+		public bool IsDungeonPass { get { return (this.HasTag("/dungeon_pass/")); } }
 
 		/// <summary>
 		/// Returns true if item is a shield.
@@ -261,6 +292,7 @@ namespace Aura.Channel.World.Entities
 			this.Init(itemId);
 			this.SetNewEntityId();
 
+			// Run OnCreation script
 			var script = ChannelServer.Instance.ScriptManager.ItemScripts.Get(itemId);
 			if (script != null)
 				script.OnCreation(this);
@@ -326,6 +358,7 @@ namespace Aura.Channel.World.Entities
 			this.MetaData2 = new MabiDictionary(baseItem.MetaData2.ToString());
 			this.QuestId = baseItem.QuestId;
 			this.EgoInfo = baseItem.EgoInfo.Copy();
+			this.AddUpgradeEffect(baseItem.GetUpgradeEffects());
 
 			this.SetNewEntityId();
 		}
@@ -459,6 +492,50 @@ namespace Aura.Channel.World.Entities
 		}
 
 		/// <summary>
+		/// Returns new check with the given amount.
+		/// </summary>
+		/// <param name="itemId"></param>
+		/// <param name="portal"></param>
+		/// <returns></returns>
+		public static Item CreateWarpScroll(int itemId, string portal)
+		{
+			var item = new Item(itemId);
+
+			if (portal == "last_town")
+				item.MetaData1.SetString("TARGET", "last_town");
+			else
+				item.MetaData1.SetString("TARGET", "portal@{0}", portal);
+
+			return item;
+		}
+
+		/// <summary>
+		/// Returns new check with the given amount.
+		/// </summary>
+		/// <param name="itemId"></param>
+		/// <param name="regionId"></param>
+		/// <param name="x"></param>
+		/// <param name="y"></param>
+		/// <returns></returns>
+		public static Item CreateWarpScroll(int itemId, int regionId, int x, int y)
+		{
+			var item = new Item(itemId);
+			item.MetaData1.SetString("TARGET", "pos@{0},{1},{2}", regionId, x, y);
+
+			return item;
+		}
+
+		/// <summary>
+		/// Returns true if item has the given flags.
+		/// </summary>
+		/// <param name="flags"></param>
+		/// <returns></returns>
+		public bool Is(ItemFlags flags)
+		{
+			return (this.OptionInfo.Flags & flags) != 0;
+		}
+
+		/// <summary>
 		/// Returns a random drop from the given list as item.
 		/// </summary>
 		/// <param name="rnd"></param>
@@ -553,11 +630,32 @@ namespace Aura.Channel.World.Entities
 		}
 
 		/// <summary>
-		/// Drops item in location with a new entity id.
+		/// Drops item at location.
 		/// </summary>
 		/// <param name="region"></param>
 		/// <param name="pos"></param>
 		public void Drop(Region region, Position pos)
+		{
+			this.Drop(region, pos, null, false);
+		}
+
+		/// <summary>
+		/// Drops item at location.
+		/// </summary>
+		/// <param name="region">Region to drop the item in.</param>
+		/// <param name="pos">
+		/// Center point of the drop, which is slightly randomized in this method.
+		/// </param>
+		/// <param name="owner">
+		/// The only entity that is allowed to pick up the item for a
+		/// certain period of time. Set to null to not protect item from
+		/// being picked up.
+		/// </param>
+		/// <param name="playerDrop">
+		/// Whether the item is being dropped by a player, the owner.
+		/// If it is, normal items aren't protected.
+		/// </param>
+		public void Drop(Region region, Position pos, Creature owner, bool playerDrop)
 		{
 			var rnd = RandomProvider.Get();
 
@@ -572,6 +670,43 @@ namespace Aura.Channel.World.Entities
 			if (!this.HasTag("/key/"))
 				this.DisappearTime = DateTime.Now.AddSeconds(Math.Max(60, (this.OptionInfo.Price / 100) * 60));
 
+			// Specify who can pick up the item when
+			if (owner != null)
+			{
+				this.OwnerId = owner.EntityId;
+
+				// Personal items can never be picked up by anyone else
+				var isPersonal =
+					(this.Data.Action == ItemAction.StaticItem || this.Data.Action == ItemAction.AccountPersonalItem || this.Data.Action == ItemAction.CharacterPersonalItem)
+					|| this.Is(ItemFlags.Personalized);
+
+				// Set protection if item wasn't dropped by a player
+				// and it's not a dungeon room key
+				var standardProtection = (!isPersonal && !playerDrop && !this.IsDungeonRoomKey);
+
+				if (isPersonal)
+				{
+					this.ProtectionLimit = DateTime.MaxValue;
+				}
+				else if (standardProtection)
+				{
+					var seconds = ChannelServer.Instance.Conf.World.LootStealProtection;
+					if (seconds > 0)
+						this.ProtectionLimit = DateTime.Now.AddSeconds(seconds);
+					else
+						this.ProtectionLimit = null;
+				}
+			}
+			else
+			{
+				this.OwnerId = 0;
+				this.ProtectionLimit = null;
+			}
+
+			// Random direction
+			this.Info.FigureC = (byte)rnd.Next(256);
+
+			// Add item to region
 			region.AddItem(this);
 		}
 
@@ -869,6 +1004,26 @@ namespace Aura.Channel.World.Entities
 				this.Region.RemoveItem(this);
 
 			base.Disappear();
+		}
+
+		/// <summary>
+		/// Adds upgrade effect to item, does not update client.
+		/// </summary>
+		/// <param name="effect"></param>
+		public void AddUpgradeEffect(params UpgradeEffect[] effects)
+		{
+			lock (_upgrades)
+				_upgrades.AddRange(effects);
+		}
+
+		/// <summary>
+		/// Returns a new list with the item's upgrade effects.
+		/// </summary>
+		/// <returns></returns>
+		public UpgradeEffect[] GetUpgradeEffects()
+		{
+			lock (_upgrades)
+				return _upgrades.ToArray();
 		}
 	}
 }

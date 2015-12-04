@@ -66,22 +66,74 @@ namespace Aura.Channel.World.Entities
 		public CreatureDeadMenu DeadMenu { get; protected set; }
 		public AimMeter AimMeter { get; protected set; }
 
+		/// <summary>
+		/// Temporary and permanent variables, exclusive to this creature.
+		/// </summary>
+		/// <remarks>
+		/// Permanent variables are saved across relogs, if the creature
+		/// is a player creature. NPCs and monster variables aren't saved.
+		/// </remarks>
 		public ScriptVariables Vars { get; protected set; }
 
+		/// <summary>
+		/// Returns true if creature is a Character or Pet.
+		/// </summary>
 		public bool IsPlayer { get { return (this.IsCharacter || this.IsPet); } }
+
+		/// <summary>
+		/// Returns true if creature is a character, i.e. a player creature,
+		/// but not a pet/partner.
+		/// </summary>
 		public bool IsCharacter { get { return (this is Character); } }
+
+		/// <summary>
+		/// Returns true if creature is a pet.
+		/// </summary>
 		public bool IsPet { get { return (this is Pet); } }
+
+		/// <summary>
+		/// Returns true if creature is a partner, i.e. a pet with an entity
+		/// id in a certain range.
+		/// </summary>
 		public bool IsPartner { get { return (this.IsPet && this.EntityId >= MabiId.Partners); } }
 
+		/// <summary>
+		/// Returns true if creature is a human, based on the race id.
+		/// </summary>
 		public bool IsHuman { get { return (this.RaceId == 10001 || this.RaceId == 10002); } }
+
+		/// <summary>
+		/// Returns true if creature is an elf, based on the race id.
+		/// </summary>
 		public bool IsElf { get { return (this.RaceId == 9001 || this.RaceId == 9002); } }
+
+		/// <summary>
+		/// Returns true if creature is a giant, based on the race id.
+		/// </summary>
 		public bool IsGiant { get { return (this.RaceId == 8001 || this.RaceId == 8002); } }
 
+		/// <summary>
+		/// Returns true if creature is male, based on its race data.
+		/// </summary>
 		public bool IsMale { get { return (this.RaceData != null && this.RaceData.Gender == Gender.Male); } }
+
+		/// <summary>
+		/// Returns true if creature is female, based on its race data.
+		/// </summary>
 		public bool IsFemale { get { return (this.RaceData != null && this.RaceData.Gender == Gender.Female); } }
 
+		/// <summary>
+		/// The region the creature is currently in.
+		/// </summary>
+		/// <remarks>
+		/// During warps, this value is the region id of the previous region,
+		/// only after the warp is done, it's set to the new region.
+		/// </remarks>
 		public override int RegionId { get; set; }
 
+		/// <summary>
+		/// Lock handler, for prohibiting the creature from doing certain things.
+		/// </summary>
 		public Locks Locks { get; protected set; }
 
 		/// <summary>
@@ -109,6 +161,11 @@ namespace Aura.Channel.World.Entities
 		/// How many times the character rebirthed.
 		/// </summary>
 		public int RebirthCount { get; set; }
+
+		/// <summary>
+		/// Returns true if creature has the devCAT title selected.
+		/// </summary>
+		public bool IsDev { get { return (this.Titles.SelectedTitle == TitleId.devCAT); } }
 
 		// Look
 		// ------------------------------------------------------------------
@@ -408,57 +465,57 @@ namespace Aura.Channel.World.Entities
 		public float Luck { get { return this.LuckBaseTotal + this.LuckMod + this.LuckFoodMod; } }
 
 		/// <summary>
-		/// Rate from monster xml
+		/// Rate from monster.
 		/// </summary>
 		public int BalanceBase { get { return (this.RightHand == null ? this.RaceData.BalanceBase : 0); } }
 
 		/// <summary>
-		/// Rate from races xml
+		/// Rate from race.
 		/// </summary>
 		public int BalanceBaseMod { get { return (this.RightHand == null ? this.RaceData.BalanceBaseMod : 0); } }
 
 		/// <summary>
-		/// Balance of right hand weapon
+		/// Balance of right hand weapon.
 		/// </summary>
 		public int RightBalanceMod { get { return (this.RightHand != null ? this.RightHand.OptionInfo.Balance : 0); } }
 
 		/// <summary>
-		/// Balance of left hand weapon
+		/// Balance of left hand weapon.
 		/// </summary>
 		public int LeftBalanceMod { get { return (this.LeftHand != null ? this.LeftHand.OptionInfo.Balance : 0); } }
 
 		/// <summary>
-		/// Critical from monster xml.
+		/// Critical from monster.
 		/// </summary>
 		public float CriticalBase { get { return (this.RightHand == null ? this.RaceData.CriticalBase : 0); } }
 
 		/// <summary>
-		/// Critical from races xml.
+		/// Critical from race.
 		/// </summary>
 		public float CriticalBaseMod { get { return (this.RightHand == null ? this.RaceData.CriticalBaseMod : 0); } }
 
 		/// <summary>
-		/// Critical of right hand weapon
+		/// Critical of right hand weapon.
 		/// </summary>
 		public float RightCriticalMod { get { return (this.RightHand != null ? this.RightHand.OptionInfo.Critical : 0); } }
 
 		/// <summary>
-		/// Critical of left hand weapon
+		/// Critical of left hand weapon.
 		/// </summary>
 		public float LeftCriticalMod { get { return (this.LeftHand != null ? this.LeftHand.OptionInfo.Critical : 0); } }
 
 		/// <summary>
-		/// AttMin from monster xml.
+		/// AttMin from monster.
 		/// </summary>
 		/// <remarks>
 		/// This seems to count towards the creature's damage even if a weapon
 		/// is equipped. This assumption is based on the fact that Golems
-		/// have a 0 attack weapon, that would make them almost no damage.
+		/// have a 0 attack weapon, that would make them do almost no damage.
 		/// </remarks>
 		public int AttackMinBase { get { return this.RaceData.AttackMinBase; } }
 
 		/// <summary>
-		/// AttMax from monster xml.
+		/// AttMax from monster.
 		/// </summary>
 		/// <remarks>
 		/// This seems to count towards the creature's damage even if a weapon
@@ -468,32 +525,41 @@ namespace Aura.Channel.World.Entities
 		public int AttackMaxBase { get { return this.RaceData.AttackMaxBase; } }
 
 		/// <summary>
-		/// AttackMin from races xml.
+		/// AttackMin from race.
 		/// </summary>
 		public int AttackMinBaseMod { get { return (this.RightHand == null ? this.RaceData.AttackMinBaseMod : 0); } }
 
 		/// <summary>
-		/// AttackMax from races xml.
+		/// AttackMax from race.
 		/// </summary>
 		public int AttackMaxBaseMod { get { return (this.RightHand == null ? this.RaceData.AttackMaxBaseMod : 0); } }
 
 		/// <summary>
-		/// Par_AttackMin from item xml, for right hand weapon.
+		/// Par_AttackMin from itemdb, for right hand weapon.
 		/// </summary>
+		/// <remarks>
+		/// Officials differentiate between 1H and 2H (e.g. two-hand swords
+		/// and bows) weapons, in that they don't contribute to the Right...
+		/// and Left... properties, but ...BaseMod. While this makes sense,
+		/// it adds unnecessary complexity, as the client will display the
+		/// correct values the way we do it as well, since it simply uses
+		/// the values to calculate the stats, independent of the kind of
+		/// weapon you have equipped.
+		/// </remarks>
 		public int RightAttackMinMod { get { return (this.RightHand != null ? this.RightHand.OptionInfo.AttackMin : 0); } }
 
 		/// <summary>
-		/// Par_AttackMax from item xml, for right hand weapon.
+		/// Par_AttackMax from itemdb, for right hand weapon.
 		/// </summary>
 		public int RightAttackMaxMod { get { return (this.RightHand != null ? this.RightHand.OptionInfo.AttackMax : 0); } }
 
 		/// <summary>
-		/// Par_AttackMin from item xml, for left hand weapon.
+		/// Par_AttackMin from itemdb, for left hand weapon.
 		/// </summary>
 		public int LeftAttackMinMod { get { return (this.LeftHand != null ? this.LeftHand.OptionInfo.AttackMin : 0); } }
 
 		/// <summary>
-		/// Par_AttackMax from item xml, for left hand weapon.
+		/// Par_AttackMax from itemdb, for left hand weapon.
 		/// </summary>
 		public int LeftAttackMaxMod { get { return (this.LeftHand != null ? this.LeftHand.OptionInfo.AttackMax : 0); } }
 
@@ -507,43 +573,109 @@ namespace Aura.Channel.World.Entities
 		/// </summary>
 		public int AttackMaxMod { get { return (int)this.StatMods.Get(Stat.AttackMaxMod); } }
 
-		public int InjuryMinBaseMod
+		/// <summary>
+		/// WAttMin from monster.
+		/// </summary>
+		public int InjuryMinBase { get { return this.RaceData.InjuryMinBase; } }
+
+		/// <summary>
+		/// WAttMax from monster.
+		/// </summary>
+		public int InjuryMaxBase { get { return this.RaceData.InjuryMaxBase; } }
+
+		/// <summary>
+		/// WAttackMin from race.
+		/// </summary>
+		public int InjuryMinBaseMod { get { return this.RaceData.InjuryMinBaseMod; } }
+
+		/// <summary>
+		/// WAttackMax from race.
+		/// </summary>
+		public int InjuryMaxBaseMod { get { return this.RaceData.InjuryMaxBaseMod; } }
+
+		/// <summary>
+		/// Par_WAttackMin from itemdb.
+		/// </summary>
+		public int RightInjuryMinMod { get { return (this.RightHand != null ? this.RightHand.OptionInfo.InjuryMin : 0); } }
+
+		/// <summary>
+		/// Par_WAttackMax from itemdb.
+		/// </summary>
+		public int RightInjuryMaxMod { get { return (this.RightHand != null ? this.RightHand.OptionInfo.InjuryMax : 0); } }
+
+		/// <summary>
+		/// Par_WAttackMin from itemdb.
+		/// </summary>
+		public int LeftInjuryMinMod { get { return (this.LeftHand != null ? this.LeftHand.OptionInfo.InjuryMin : 0); } }
+
+		/// <summary>
+		/// Par_WAttackMax from itemdb.
+		/// </summary>
+		public int LeftInjuryMaxMod { get { return (this.LeftHand != null ? this.LeftHand.OptionInfo.InjuryMax : 0); } }
+
+		/// <summary>
+		/// Title bonuses?
+		/// </summary>
+		public int InjuryMinMod { get { return (int)this.StatMods.Get(Stat.InjuryMinMod); } }
+
+		/// <summary>
+		/// Title bonuses?
+		/// </summary>
+		public int InjuryMaxMod { get { return (int)this.StatMods.Get(Stat.InjuryMaxMod); } }
+
+		/// <summary>
+		/// Returns total min injury.
+		/// </summary>
+		public int InjuryMin
 		{
 			get
 			{
-				var result = 0;
+				var result = ((this.Dex - 10) * 0.05f) + ((this.Will - 10) * 0.05f);
+				result += this.InjuryMinBase;
+				result += this.InjuryMinBaseMod;
+				result += this.InjuryMinMod;
 
+				// Add average of both weapons
 				if (this.RightHand != null)
 				{
-					result = this.RightHand.OptionInfo.InjuryMin;
+					var weapons = (float)RightInjuryMinMod;
 					if (this.LeftHand != null)
-					{
-						result += this.LeftHand.OptionInfo.InjuryMin;
-						result /= 2; // average
-					}
+						weapons = (weapons + this.LeftInjuryMinMod) / 2;
+
+					result += weapons;
 				}
 
-				return result;
+				return (int)Math2.Clamp(0, 100, result);
 			}
 		}
 
-		public int InjuryMaxBaseMod
+		/// <summary>
+		/// Returns total max injury.
+		/// </summary>
+		/// <remarks>
+		/// Something is missing in this function, the max injury rate shown on
+		/// the client tends to be *slightly* different, in the range of +-1~4.
+		/// </remarks>
+		public int InjuryMax
 		{
 			get
 			{
-				var result = 0;
+				var result = ((this.Dex - 10) * 0.1f) + ((this.Will - 10) * 0.2f);
+				result += this.InjuryMaxBase;
+				result += this.InjuryMaxBaseMod;
+				result += this.InjuryMaxMod;
 
+				// Add average of both weapons
 				if (this.RightHand != null)
 				{
-					result = this.RightHand.OptionInfo.InjuryMax;
+					var weapons = (float)RightInjuryMaxMod;
 					if (this.LeftHand != null)
-					{
-						result += this.LeftHand.OptionInfo.InjuryMax;
-						result /= 2; // average
-					}
+						weapons = (weapons + this.LeftInjuryMaxMod) / 2;
+
+					result += weapons;
 				}
 
-				return result;
+				return (int)Math2.Clamp(0, 100, result);
 			}
 		}
 
@@ -1673,7 +1805,7 @@ namespace Aura.Channel.World.Entities
 						}
 
 						var gold = Item.CreateGold(Math.Min(1000, amount));
-						gold.Drop(this.Region, pos);
+						gold.Drop(this.Region, pos, killer, false);
 
 						amount -= gold.Info.Amount;
 					}
@@ -1700,14 +1832,14 @@ namespace Aura.Channel.World.Entities
 					var dropPos = pos.GetRandomInRange(50, rnd);
 
 					var item = new Item(drop);
-					item.Drop(this.Region, pos);
+					item.Drop(this.Region, pos, killer, false);
 
 					dropped.Add(drop.ItemId);
 				}
 			}
 
 			foreach (var item in this.Drops.StaticDrops)
-				item.Drop(this.Region, pos);
+				item.Drop(this.Region, pos, killer, false);
 
 			this.Drops.ClearStaticDrops();
 		}
@@ -2230,13 +2362,15 @@ namespace Aura.Channel.World.Entities
 		/// </summary>
 		/// <remarks>
 		/// Unofficial, but seems to work fine in most cases.
-		/// http://mabination.com/threads/57123-Chaos-Life-Skill-Guide-Refining
+		/// Dex bonus: http://mabination.com/threads/57123-Chaos-Life-Skill-Guide-Refining
 		/// </remarks>
 		/// <returns></returns>
-		public float GetProductionSuccessChance(int baseChance, int rainBonus)
+		public float GetProductionSuccessChance(Skill skill, ProductionCategory category, int baseChance, int rainBonus)
 		{
 			// Base
-			var result = (baseChance + (this.Dex - 60) * (baseChance / 300));
+			float result = baseChance;
+			if (skill.Info.Id != SkillId.PotionMaking && skill.Info.Id != SkillId.Milling)
+				result += (this.Dex - 60) * (baseChance / 300f);
 
 			// Production Mastery bonus
 			var pm = this.Skills.Get(SkillId.ProductionMastery);
@@ -2245,9 +2379,63 @@ namespace Aura.Channel.World.Entities
 
 			// Weather bonus
 			if (ChannelServer.Instance.Weather.GetWeatherType(this.RegionId) == WeatherType.Rain)
-				result += rainBonus;
+			{
+				if (category == ProductionCategory.Weaving)
+					result += rainBonus * 2;
+				else
+					result *= 1 + (rainBonus / 100f);
+			}
+
+			// Party bonus
+			result += this.GetProductionPartyBonus(skill);
 
 			return Math2.Clamp(0, 99, result);
+		}
+
+		/// <summary>
+		/// Returns party production bonus for the given skill if creature
+		/// is in a party.
+		/// </summary>
+		/// <remarks>
+		// http://wiki.mabinogiworld.com/view/Party#Production_Bonus
+		/// </remarks>
+		/// <param name="skill"></param>
+		/// <returns></returns>
+		public float GetProductionPartyBonus(Skill skill)
+		{
+			// No bonus when not in party
+			if (!this.IsInParty)
+				return 0;
+
+			var result = 0f;
+
+			var members = this.Party.GetMembers();
+			foreach (var member in members)
+			{
+				// Exclude this creature
+				if (member == this)
+					continue;
+
+				// Exclude members that don't have Production Master rF+
+				var productionMastery = member.Skills.Get(SkillId.ProductionMastery);
+				if (productionMastery == null || productionMastery.Info.Rank < SkillRank.RF)
+					continue;
+
+				// Exclude members that don't have the production skill on rF+
+				var memberSkill = member.Skills.Get(skill.Info.Id);
+				if (memberSkill == null || memberSkill.Info.Rank < SkillRank.RF)
+					continue;
+
+				// +1% if member has the skill on a lower rank
+				if (memberSkill.Info.Rank < skill.Info.Rank)
+					result += 1;
+				// +5% if member has the skill on same or higher rank
+				else
+					result += 5;
+			}
+
+			// Cap at 35
+			return Math.Min(35, result);
 		}
 
 		/// <summary>
@@ -2305,6 +2493,26 @@ namespace Aura.Channel.World.Entities
 		public int GetTotalHits()
 		{
 			return _totalHits;
+		}
+
+		/// <summary>
+		/// Returns whether creature is allowed to pick up the given item
+		/// from the ground.
+		/// </summary>
+		/// <param name="item"></param>
+		/// <returns></returns>
+		public bool CanPickUp(Item item)
+		{
+			// Check if item is actually on the ground
+			if (item.RegionId == 0)
+				return false;
+
+			// Check if it's actually protected
+			if (item.OwnerId == 0 || item.ProtectionLimit == null || item.ProtectionLimit < DateTime.Now)
+				return true;
+
+			// Return whether creature is the owner
+			return (item.OwnerId == this.EntityId);
 		}
 	}
 }

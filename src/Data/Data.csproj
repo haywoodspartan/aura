@@ -56,6 +56,7 @@
     <Compile Include="Database\Actors.cs" />
     <Compile Include="Database\AncientDrops.cs" />
     <Compile Include="Database\Chairs.cs" />
+    <Compile Include="Database\CharacterStyles.cs" />
     <Compile Include="Database\CharCards.cs" />
     <Compile Include="Database\CharCardSets.cs" />
     <Compile Include="Database\Collecting.cs" />
@@ -67,6 +68,7 @@
     <Compile Include="Database\Fish.cs" />
     <Compile Include="Database\FishingGrounds.cs" />
     <Compile Include="Database\Manuals.cs" />
+    <Compile Include="Database\Portals.cs" />
     <Compile Include="Database\Production.cs" />
     <Compile Include="Database\PropDefaults.cs" />
     <Compile Include="Database\Props.cs" />

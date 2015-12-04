@@ -267,9 +267,13 @@ namespace Aura.Channel.Skills.Base
 			var rank = skill.Info.Rank <= SkillRank.R1 ? skill.Info.Rank : SkillRank.R1;
 			var baseChance = potentialProducts.Sum(a => a.SuccessRates[rank]);
 			var rainBonus = productData.RainBonus;
-			var chance = creature.GetProductionSuccessChance(baseChance, rainBonus);
+			var chance = creature.GetProductionSuccessChance(skill, category, baseChance, rainBonus);
 			var rnd = RandomProvider.Get();
 			var success = (rnd.Next(100) < chance);
+
+			// Debug
+			if (creature.Titles.SelectedTitle == TitleId.devCAT)
+				Send.ServerMessage(creature, "Debug: Chance {0}%", chance);
 
 			// Select random product
 			// Do this here, so we have the data for skill training,
@@ -310,7 +314,7 @@ namespace Aura.Channel.Skills.Base
 			{
 				// On fail of non-queued productions you lose 1~amount of
 				// materials randomly
-				var reduce = (success || amountToProduce > 1) ? material.Amount : rnd.Next(1, material.Amount + 1);
+				var reduce = success ? material.Amount : rnd.Next(1, material.Amount + 1);
 				if (reduce > 0)
 					creature.Inventory.Decrement(material.Item, (ushort)reduce);
 			}

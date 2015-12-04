@@ -272,8 +272,8 @@ namespace Aura.Channel.World
 		}
 
 		/// <summary>
-		/// Returns first prop with the given id, from any region,
-		/// or null, if none was found.
+		/// Returns first prop with the given id, from the region in the id,
+		/// or null, if it wasn't was found.
 		/// </summary>
 		/// <param name="id"></param>
 		/// <returns></returns>
@@ -285,6 +285,62 @@ namespace Aura.Channel.World
 				return null;
 
 			return region.GetProp(id);
+		}
+
+		/// <summary>
+		/// Returns prop by global name, or null if doesn't exist.
+		/// </summary>
+		/// <param name="globalName"></param>
+		/// <returns></returns>
+		public Prop GetProp(string globalName)
+		{
+			lock (_regions)
+			{
+				foreach (var region in _regions.Values)
+				{
+					var prop = region.GetProp(a => a.GlobalName == globalName);
+					if (prop != null)
+						return prop;
+				}
+			}
+
+			return null;
+		}
+
+		/// <summary>
+		/// Returns first client event with the given id, from the region in the id,
+		/// or null, if it wasn't was found.
+		/// </summary>
+		/// <param name="entityId"></param>
+		/// <returns></returns>
+		public ClientEvent GetClientEvent(long entityId)
+		{
+			var regionId = (int)((entityId >> 32) & ~0xFFFF0000);
+			var region = this.GetRegion(regionId);
+			if (region == null)
+				return null;
+
+			return region.GetClientEvent(entityId);
+		}
+
+		/// <summary>
+		/// Returns client event by global name, or null if doesn't exist.
+		/// </summary>
+		/// <param name="globalName"></param>
+		/// <returns></returns>
+		public ClientEvent GetClientEvent(string globalName)
+		{
+			lock (_regions)
+			{
+				foreach (var region in _regions.Values)
+				{
+					var clientEvent = region.GetClientEvent(a => a.GlobalName == globalName);
+					if (clientEvent != null)
+						return clientEvent;
+				}
+			}
+
+			return null;
 		}
 
 		/// <summary>

@@ -551,6 +551,8 @@ namespace Aura.Channel.World.Inventory
 			//   properly, see pet invs.)
 			// We also need the new id to prevent conflicts in the db
 			// (SVN r67).
+			// If this is changed, the item's owner and protection limit
+			// should be reset on pick up.
 
 			var newItem = new Item(item);
 			newItem.IsNew = true;
@@ -1219,6 +1221,8 @@ namespace Aura.Channel.World.Inventory
 				Stat.RightAttackMinMod, Stat.RightAttackMaxMod,
 				Stat.LeftAttackMinMod, Stat.LeftAttackMaxMod,
 				Stat.InjuryMinBaseMod, Stat.InjuryMaxBaseMod,
+				Stat.RightInjuryMinMod, Stat.RightInjuryMaxMod,
+				Stat.LeftInjuryMinMod, Stat.LeftInjuryMaxMod,
 				Stat.CriticalBase, Stat.CriticalBaseMod,
 				Stat.LeftCriticalMod, Stat.RightCriticalMod,
 				Stat.BalanceBase, Stat.BalanceBaseMod,

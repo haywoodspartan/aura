@@ -107,18 +107,18 @@ namespace Aura.Channel.Network.Sending.Helpers
 				packet.PutShort((short)creature.AttackMinMod);
 				packet.PutShort((short)creature.AttackMaxBase);
 				packet.PutShort((short)creature.AttackMaxMod);
-				packet.PutShort(0);			         // InjuryMinBase
-				packet.PutShort(0);			         // InjuryMinMod
-				packet.PutShort(0);			         // InjuryMaxBase
-				packet.PutShort(0);			         // InjuryMaxMod
+				packet.PutShort((short)creature.InjuryMinBase);
+				packet.PutShort((short)creature.InjuryMinMod);
+				packet.PutShort((short)creature.InjuryMaxBase);
+				packet.PutShort((short)creature.InjuryMaxMod);
 				packet.PutShort((short)creature.LeftAttackMinMod);
 				packet.PutShort((short)creature.LeftAttackMaxMod);
 				packet.PutShort((short)creature.RightAttackMinMod);
 				packet.PutShort((short)creature.RightAttackMaxMod);
-				packet.PutShort(0);			         // LeftInjuryMinMod
-				packet.PutShort(0);			         // LeftInjuryMaxMod
-				packet.PutShort(0);			         // RightInjuryMinMod
-				packet.PutShort(0);			         // RightInjuryMaxMod
+				packet.PutShort((short)creature.LeftInjuryMinMod);
+				packet.PutShort((short)creature.LeftInjuryMaxMod);
+				packet.PutShort((short)creature.RightInjuryMinMod);
+				packet.PutShort((short)creature.RightInjuryMaxMod);
 				packet.PutFloat(creature.LeftCriticalMod);
 				packet.PutFloat(creature.RightCriticalMod);
 				packet.PutShort((short)creature.LeftBalanceMod);
@@ -898,7 +898,7 @@ namespace Aura.Channel.Network.Sending.Helpers
 
 			packet.PutInt(-1);					 // SittedSocialMotionId
 
-			// ? (Last Part of public)
+			// ? (Last Part of public, except for something at the very end)
 			// --------------------------------------------------------------
 			if (type == CreaturePacketType.Public)
 			{
@@ -947,82 +947,97 @@ namespace Aura.Channel.Network.Sending.Helpers
 				{
 					packet.PutByte(1);
 				}
-
-				return packet;
 			}
 
-			// private:
-
-			// [JP] ?
-			// This int is needed in the JP client (1704 log),
-			// but doesn't appear in the NA 1704 or KR test 1801 log.
+			if (type == CreaturePacketType.Private)
 			{
-				//packet.PutInt(4);
-			}
+				// private:
 
-			// Premium stuff
-			// --------------------------------------------------------------
-			// [180600, NA187 (25.06.2014)] ?
-			{
+				// [JP] ?
+				// This int is needed in the JP client (1704 log),
+				// but doesn't appear in the NA 1704 or KR test 1801 log.
+				{
+					//packet.PutInt(4);
+				}
+
+				// Premium stuff
+				// --------------------------------------------------------------
+				// [180600, NA187 (25.06.2014)] ?
+				{
+					packet.PutByte(0);
+				}
+				packet.PutByte(0);                   // IsUsingExtraStorage (old service)
+				packet.PutByte(1);                   // IsUsingNaosSupport (old service) (Style tab in 1803?)
+				packet.PutByte(0);                   // IsUsingAdvancedPlay (old service)
+				packet.PutByte(0);                   // PremiumService 0
+				packet.PutByte(0);                   // PremiumService 1
+				packet.PutByte(1);                   // Premium Gestures
+				packet.PutByte(1);					 // ? (Default 1 on NA?)
 				packet.PutByte(0);
-			}
-			packet.PutByte(0);                   // IsUsingExtraStorage (old service)
-			packet.PutByte(1);                   // IsUsingNaosSupport (old service) (Style tab in 1803?)
-			packet.PutByte(0);                   // IsUsingAdvancedPlay (old service)
-			packet.PutByte(0);                   // PremiumService 0
-			packet.PutByte(0);                   // PremiumService 1
-			packet.PutByte(1);                   // Premium Gestures
-			packet.PutByte(1);					 // ? (Default 1 on NA?)
-			packet.PutByte(0);
-			// [170402, TW170300] New premium thing
-			{
-				packet.PutByte(1); // VIP inv? (since 1803?)
-			}
-			// [180300, NA166 (18.09.2013)] ?
-			{
+				// [170402, TW170300] New premium thing
+				{
+					packet.PutByte(1); // VIP inv? (since 1803?)
+				}
+				// [180300, NA166 (18.09.2013)] ?
+				{
+					packet.PutByte(0);
+					packet.PutByte(0);
+				}
+				// [180800, NA196 (14.10.2014)] ?
+				{
+					packet.PutByte(0);
+				}
+				packet.PutInt(0);
 				packet.PutByte(0);
-				packet.PutByte(0);
+				packet.PutInt(0);
+				packet.PutInt(0);
+				packet.PutInt(0);
+
+				// Quests
+				// --------------------------------------------------------------
+				var quests = creature.Quests.GetIncompleteList();
+				packet.PutInt(quests.Count);
+				foreach (var quest in quests)
+					packet.AddQuest(quest);
+
+				// Char
+				// --------------------------------------------------------------
+				packet.PutByte(0);					 // NaoDress (0:normal, 12:??, 13:??)
+				packet.PutLong(creature.CreationTime);
+				packet.PutLong(creature.LastRebirth);
+				packet.PutString("");
+				packet.PutByte(0); // "true" makes character lie on floor?
+				packet.PutByte(2);
+
+				// [150100] Pocket ExpireTime List
+				// Apperantly a list of "pockets"?, incl expiration time.
+				// Ends with a long 0?
+				// --------------------------------------------------------------
+				{
+					// Style
+					packet.PutLong(DateTime.Now.AddMonths(1));
+					packet.PutShort(72);
+
+					// ?
+					//packet.PutLong(0);
+					//packet.PutShort(73);
+
+					packet.PutLong(0);
+				}
 			}
-			// [180800, NA196 (14.10.2014)] ?
+
+			// [190200, NA215 (18.11.2015)] Chat Sticker
 			{
-				packet.PutByte(0);
-			}
-			packet.PutInt(0);
-			packet.PutByte(0);
-			packet.PutInt(0);
-			packet.PutInt(0);
-			packet.PutInt(0);
+				var stickerId = 0;
+				var end = DateTime.MinValue;
+				if (creature.Vars.Perm["ChatStickerId"] != null)
+				{
+					stickerId = creature.Vars.Perm["ChatStickerId"];
+					end = creature.Vars.Perm["ChatStickerEnd"];
+				}
 
-			// Quests
-			// --------------------------------------------------------------
-			var quests = creature.Quests.GetIncompleteList();
-			packet.PutInt(quests.Count);
-			foreach (var quest in quests)
-				packet.AddQuest(quest);
-
-			// Char
-			// --------------------------------------------------------------
-			packet.PutByte(0);					 // NaoDress (0:normal, 12:??, 13:??)
-			packet.PutLong(creature.CreationTime);
-			packet.PutLong(creature.LastRebirth);
-			packet.PutString("");
-			packet.PutByte(0); // "true" makes character lie on floor?
-			packet.PutByte(2);
-
-			// [150100] Pocket ExpireTime List
-			// Apperantly a list of "pockets"?, incl expiration time.
-			// Ends with a long 0?
-			// --------------------------------------------------------------
-			{
-				// Style
-				packet.PutLong(DateTime.Now.AddMonths(1));
-				packet.PutShort(72);
-
-				// ?
-				//packet.PutLong(0);
-				//packet.PutShort(73);
-
-				packet.PutLong(0);
+				packet.PutInt((int)stickerId);
+				packet.PutLong(end);
 			}
 
 			return packet;

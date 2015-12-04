@@ -40,7 +40,7 @@ namespace Aura.Channel.World
 
 		protected HashSet<ChannelClient> _clients;
 
-		public RegionInfoData RegionInfoData { get; protected set; }
+		public RegionInfoData Data { get; protected set; }
 
 		/// <summary>
 		/// Region's name
@@ -120,7 +120,7 @@ namespace Aura.Channel.World
 		/// </summary>
 		protected void InitializeFromData()
 		{
-			if (this.RegionInfoData == null || this.RegionInfoData.Areas == null)
+			if (this.Data == null || this.Data.Areas == null)
 				return;
 
 			this.LoadProps();
@@ -132,24 +132,13 @@ namespace Aura.Channel.World
 		/// </summary>
 		protected void LoadProps()
 		{
-			foreach (var area in this.RegionInfoData.Areas)
+			foreach (var areaData in this.Data.Areas)
 			{
-				foreach (var prop in area.Props.Values)
+				foreach (var propData in areaData.Props.Values)
 				{
-					var add = new Prop(prop.EntityId, prop.Id, this.Id, (int)prop.X, (int)prop.Y, prop.Direction, prop.Scale, 0, "", "", "");
+					var prop = new Prop(propData, this.Id, this.Data.Name, areaData.Name);
 
-					// Save parameters for use by dungeons
-					add.Parameters = prop.Parameters.ToList();
-
-					// Add drop behaviour if drop type exists
-					var dropType = prop.GetDropType();
-					if (dropType != -1) add.Behavior = Prop.GetDropBehavior(dropType);
-
-					// Replace default shapes with the ones loaded from region.
-					add.Shapes.Clear();
-					add.Shapes.AddRange(prop.Shapes.Select(a => a.GetPoints(0, 0, 0)));
-
-					this.AddProp(add);
+					this.AddProp(prop);
 				}
 			}
 		}
@@ -159,12 +148,12 @@ namespace Aura.Channel.World
 		/// </summary>
 		protected void LoadClientEvents()
 		{
-			foreach (var area in this.RegionInfoData.Areas)
+			foreach (var areaData in this.Data.Areas)
 			{
-				foreach (var clientEvent in area.Events.Values)
+				foreach (var clientEventData in areaData.Events.Values)
 				{
-					var add = new ClientEvent(clientEvent.Id, clientEvent);
-					this.AddClientEvent(add);
+					var clientEvent = new ClientEvent(clientEventData, this.Data.Name, areaData.Name);
+					this.AddClientEvent(clientEvent);
 				}
 			}
 		}
@@ -227,7 +216,7 @@ namespace Aura.Channel.World
 		/// <summary>
 		/// Returns first event that matches the predicate.
 		/// </summary>
-		/// <param name="eventId"></param>
+		/// <param name="predicate"></param>
 		/// <returns></returns>
 		public ClientEvent GetClientEvent(Func<ClientEvent, bool> predicate)
 		{
@@ -289,7 +278,7 @@ namespace Aura.Channel.World
 		{
 			var areaId = 0;
 
-			foreach (var area in this.RegionInfoData.Areas)
+			foreach (var area in this.Data.Areas)
 			{
 				if (x >= Math.Min(area.X1, area.X2) && x < Math.Max(area.X1, area.X2) && y >= Math.Min(area.Y1, area.Y2) && y < Math.Max(area.Y1, area.Y2))
 					areaId = area.Id;
@@ -808,6 +797,8 @@ namespace Aura.Channel.World
 		/// <summary>
 		/// Despawns prop, sends EntityDisappears.
 		/// </summary>
+		/// <param name="prop"></param>
+		/// <returns></returns>
 		public void RemoveProp(Prop prop)
 		{
 			if (!prop.ServerSide)
@@ -838,6 +829,8 @@ namespace Aura.Channel.World
 		/// <summary>
 		/// Returns prop or null.
 		/// </summary>
+		/// <param name="entityId"></param>
+		/// <returns></returns>
 		public Prop GetProp(long entityId)
 		{
 			Prop result;
@@ -856,8 +849,33 @@ namespace Aura.Channel.World
 		}
 
 		/// <summary>
-		/// Returns prop or null.
+		/// Returns first prop that matches the predicate, or null if
+		/// no matching props were found.
 		/// </summary>
+		/// <param name="predicate"></param>
+		/// <returns></returns>
+		public Prop GetProp(Func<Prop, bool> predicate)
+		{
+			Prop result;
+
+			_propsRWLS.EnterReadLock();
+			try
+			{
+				result = _props.Values.FirstOrDefault(predicate);
+			}
+			finally
+			{
+				_propsRWLS.ExitReadLock();
+			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Returns list of all props that match the predicate.
+		/// </summary>
+		/// <param name="predicate"></param>
+		/// <returns></returns>
 		public IList<Prop> GetProps(Func<Prop, bool> predicate)
 		{
 			var result = new List<Prop>();
@@ -878,6 +896,11 @@ namespace Aura.Channel.World
 		/// <summary>
 		///  Adds item, sends EntityAppears.
 		/// </summary>
+		/// <remarks>
+		/// Use Item's Drop method to drop items in a region,
+		/// unless you know what you're doing.
+		/// </remarks>
+		/// <param name="item"></param>
 		public void AddItem(Item item)
 		{
 			_itemsRWLS.EnterWriteLock();
@@ -901,6 +924,7 @@ namespace Aura.Channel.World
 		/// <summary>
 		/// Despawns item, sends EntityDisappears.
 		/// </summary>
+		/// <param name="item"></param>
 		public void RemoveItem(Item item)
 		{
 			_itemsRWLS.EnterWriteLock();
@@ -921,6 +945,8 @@ namespace Aura.Channel.World
 		/// <summary>
 		/// Returns item or null.
 		/// </summary>
+		/// <param name="entityId"></param>
+		/// <returns></returns>
 		public Item GetItem(long entityId)
 		{
 			Item result;
@@ -941,6 +967,7 @@ namespace Aura.Channel.World
 		/// <summary>
 		/// Returns a list of all items on the floor.
 		/// </summary>
+		/// <returns></returns>
 		public List<Item> GetAllItems()
 		{
 			List<Item> result;
@@ -961,6 +988,9 @@ namespace Aura.Channel.World
 		/// <summary>
 		/// Returns new list of all entities within range of source.
 		/// </summary>
+		/// <param name="source"></param>
+		/// <param name="range">Leave at default for visible range.</param>
+		/// <returns></returns>
 		public List<Entity> GetEntitiesInRange(Entity source, int range = -1)
 		{
 			if (range < 0)
@@ -1005,6 +1035,9 @@ namespace Aura.Channel.World
 		/// <summary>
 		/// Returns new list of all creatures within range of position.
 		/// </summary>
+		/// <param name="pos"></param>
+		/// <param name="range"></param>
+		/// <returns></returns>
 		public List<Creature> GetCreaturesInRange(Position pos, int range)
 		{
 			var result = new List<Creature>();
@@ -1025,6 +1058,8 @@ namespace Aura.Channel.World
 		/// <summary>
 		/// Returns new list of all creatures within the specified polygon.
 		/// </summary>
+		/// <param name="points"></param>
+		/// <returns></returns>
 		public List<Creature> GetCreaturesInPolygon(params Point[] points)
 		{
 			var result = new List<Creature>();

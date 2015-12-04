@@ -140,7 +140,7 @@ namespace Aura.Channel.Network.Handlers
 			}
 
 			if (!ChannelServer.Instance.World.DungeonManager.CheckDrop(creature, item))
-				item.Drop(creature.Region, creature.GetPosition());
+				item.Drop(creature.Region, creature.GetPosition(), creature, true);
 
 			Send.ItemDropR(creature, true);
 
@@ -170,11 +170,26 @@ namespace Aura.Channel.Network.Handlers
 				return;
 			}
 
+			// Get item from region
 			var item = creature.Region.GetItem(entityId);
 			if (item == null)
 			{
 				Send.ItemPickUpR(creature, false);
 				return;
+			}
+
+			// Check protection
+			if (!creature.CanPickUp(item))
+			{
+				if (creature.IsDev)
+				{
+					Send.Notice(creature, Localization.Get("You stole an innocent player's loot, feeling like a big, strong devCAT now? Shame on you."));
+				}
+				else
+				{
+					Send.ItemPickUpR(creature, false);
+					return;
+				}
 			}
 
 			// Add bag
@@ -189,6 +204,7 @@ namespace Aura.Channel.Network.Handlers
 				}
 			}
 
+			// Try to pick up item
 			if (!creature.Inventory.PickUp(item))
 			{
 				Send.SystemMessage(creature, Localization.Get("Not enough space."));
@@ -213,13 +229,21 @@ namespace Aura.Channel.Network.Handlers
 		[PacketHandler(Op.ItemDestroy)]
 		public void ItemDestroy(ChannelClient client, Packet packet)
 		{
-			var itemId = packet.GetLong();
+			var itemEntityId = packet.GetLong();
 
 			var creature = client.GetCreatureSafe(packet.Id);
+			var item = creature.Inventory.GetItemSafe(itemEntityId);
 
-			// Check and try to remove item
-			var item = creature.Inventory.GetItem(itemId);
-			if (item == null || !creature.Inventory.Remove(item))
+			// Check if item is destroyable
+			if (!item.HasTag("/destroyable/"))
+			{
+				Log.Warning("ItemDestroy: Creature '{0:X16}' tried to destroy a non-destroyable item.");
+				Send.ItemDestroyR(creature, false);
+				return;
+			}
+
+			// Try to remove item
+			if (!creature.Inventory.Remove(item))
 			{
 				Send.ItemDestroyR(creature, false);
 				return;

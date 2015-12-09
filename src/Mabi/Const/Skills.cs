@@ -547,16 +547,6 @@ namespace Aura.Mabi.Const
 		CommerceMastery = 55100,
 		TransformationMastery = 56001,
 
-		// Guns
-		DualGunMastery = 54302,
-		FlashLauncher = 54303,
-		GrappleShot = 54304,
-		BulletSlide = 54305,
-		ShootingRush = 54306,
-		BulletStorm = 54307,
-		Reload = 54401,
-		WayOfTheGun = 54402,
-
 		// Ninja
 		ShurikenMastery = 26000,
 		ShurikenCharge = 26001,

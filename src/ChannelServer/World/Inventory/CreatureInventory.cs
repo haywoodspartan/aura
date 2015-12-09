@@ -26,7 +26,6 @@ namespace Aura.Channel.World.Inventory
 		private const int MaxWidth = 32;
 		private const int MaxHeight = 32;
 		private const int GoldItemId = 2000;
-		private const int GoldStackMax = 1000;
 
 		static CreatureInventory()
 		{
@@ -129,24 +128,10 @@ namespace Aura.Channel.World.Inventory
 			}
 		}
 
-		private WeaponSet _weaponSet;
 		/// <summary>
 		/// Sets or returns the selected weapon set.
 		/// </summary>
-		public WeaponSet WeaponSet
-		{
-			get { return _weaponSet; }
-			set
-			{
-				_weaponSet = value;
-				this.UpdateEquipReferences(Pocket.RightHand1, Pocket.LeftHand1, Pocket.Magazine1);
-
-				// Make sure the creature is logged in
-				// TODO: Remove sending from properties.
-				if (_creature.Region != Region.Limbo)
-					this.UpdateEquipStats();
-			}
-		}
+		public WeaponSet WeaponSet { get; private set; }
 
 		public Pocket RightHandPocket { get { return (this.WeaponSet == WeaponSet.First ? Pocket.RightHand1 : Pocket.RightHand2); } }
 		public Pocket LeftHandPocket { get { return (this.WeaponSet == WeaponSet.First ? Pocket.LeftHand1 : Pocket.LeftHand2); } }
@@ -1282,11 +1267,22 @@ namespace Aura.Channel.World.Inventory
 
 			Send.ItemExpUpdate(_creature, item);
 		}
-	}
 
-	public enum WeaponSet : byte
-	{
-		First = 0,
-		Second = 1,
+		/// <summary>
+		/// Changes weapon set, if necessary, and updates clients.
+		/// </summary>
+		/// <param name="set"></param>
+		public void ChangeWeaponSet(WeaponSet set)
+		{
+			this.WeaponSet = set;
+			this.UpdateEquipReferences(Pocket.RightHand1, Pocket.LeftHand1, Pocket.Magazine1);
+
+			// Make sure the creature is logged in
+			if (_creature.Region != Region.Limbo)
+			{
+				this.UpdateEquipStats();
+				Send.UpdateWeaponSet(_creature);
+			}
+		}
 	}
 }

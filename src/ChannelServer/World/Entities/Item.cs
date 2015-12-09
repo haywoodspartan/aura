@@ -11,6 +11,7 @@ using Aura.Mabi.Structs;
 using Aura.Shared.Util;
 using Aura.Mabi;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace Aura.Channel.World.Entities
 {
@@ -319,17 +320,48 @@ namespace Aura.Channel.World.Entities
 		{
 			var rnd = RandomProvider.Get();
 
+			// Amount
 			this.Info.Amount = (ushort)rnd.Next(dropData.AmountMin, dropData.AmountMax + 1);
 			if (this.Data.StackType != StackType.Sac && this.Info.Amount < 1)
 				this.Info.Amount = 1;
 
-			this.OptionInfo.Prefix = (ushort)dropData.Prefix;
-			this.OptionInfo.Suffix = (ushort)dropData.Suffix;
+			// Set enchant meta data or apply option sets to item
+			if (dropData.Prefix != 0 || dropData.Suffix != 0)
+			{
+				if (this.HasTag("/enchantscroll/"))
+				{
+					// Prefix
+					if (dropData.Prefix != 0)
+					{
+						var data = AuraData.OptionSetDb.Find(dropData.Prefix);
+						if (data == null) throw new ArgumentException("Option set doesn't exist: " + dropData.Prefix);
+						if (data.Category != OptionSetCategory.Prefix) throw new ArgumentException("Option set is not a prefix.");
 
+						this.MetaData1.SetInt("ENPFIX", dropData.Prefix);
+					}
+
+					// Suffix
+					if (dropData.Suffix != 0)
+					{
+						var data = AuraData.OptionSetDb.Find(dropData.Suffix);
+						if (data == null) throw new ArgumentException("Option set doesn't exist: " + dropData.Suffix);
+						if (data.Category != OptionSetCategory.Suffix) throw new ArgumentException("Option set is not a suffix.");
+
+						this.MetaData1.SetInt("ENSFIX", dropData.Suffix);
+					}
+
+					// TODO: Expiration?
+				}
+				else
+					this.ApplyPreSuffix(dropData.Prefix, dropData.Suffix);
+			}
+
+			// Colors
 			if (dropData.Color1 != null) this.Info.Color1 = (uint)dropData.Color1;
 			if (dropData.Color2 != null) this.Info.Color2 = (uint)dropData.Color2;
 			if (dropData.Color3 != null) this.Info.Color3 = (uint)dropData.Color3;
 
+			// Lowered durability
 			if (dropData.Durability != -1)
 				this.Durability = dropData.Durability;
 		}
@@ -420,15 +452,133 @@ namespace Aura.Channel.World.Entities
 		}
 
 		/// <summary>
-		/// Returns new stack of gold.
+		/// Returns new item, enchanted with the given prefix/suffix.
 		/// </summary>
-		/// <param name="amount"></param>
+		/// <param name="itemId">Id of the item to create.</param>
+		/// <param name="prefix">Id of the prefix option set to apply to item, 0 for none.</param>
+		/// <param name="suffix">Id of the suffix option set to apply to item, 0 for none.</param>
 		/// <returns></returns>
 		public static Item CreateEnchanted(int itemId, int prefix = 0, int suffix = 0)
 		{
 			var item = new Item(itemId);
-			if (prefix > 0) item.OptionInfo.Prefix = (ushort)prefix;
-			if (suffix > 0) item.OptionInfo.Suffix = (ushort)suffix;
+			item.ApplyPreSuffix(prefix, suffix);
+
+			return item;
+		}
+
+		/// <summary>
+		/// Applies given prefix and/or suffix.
+		/// </summary>
+		/// <param name="prefix">Prefix to apply, 0 for none.</param>
+		/// <param name="suffix">Suffix to apply, 0 for none.</param>
+		public void ApplyPreSuffix(int prefix, int suffix)
+		{
+			// Prefix
+			if (prefix > 0)
+			{
+				var data = AuraData.OptionSetDb.Find(prefix);
+				if (data == null)
+					throw new ArgumentException("Option set doesn't exist: " + prefix);
+				if (data.Category != OptionSetCategory.Prefix)
+					throw new ArgumentException("Option set is not a suffix.");
+
+				this.OptionInfo.Prefix = (ushort)prefix;
+				this.ApplyOptionSet(data, true);
+			}
+
+			// Suffix
+			if (suffix > 0)
+			{
+				var data = AuraData.OptionSetDb.Find(suffix);
+				if (data == null)
+					throw new ArgumentException("Option set doesn't exist: " + suffix);
+				if (data.Category != OptionSetCategory.Suffix)
+					throw new ArgumentException("Option set is not a suffix.");
+
+				this.OptionInfo.Suffix = (ushort)suffix;
+				this.ApplyOptionSet(data, true);
+			}
+		}
+
+		/// <summary>
+		/// Returns enchant with the given option set id.
+		/// </summary>
+		/// <param name="optionSetId">Option set to use, either Prefix or Suffix.</param>
+		/// <param name="expiration">The time in minutes after which the enchant expires, 0 for none.</param>
+		/// <returns></returns>
+		public static Item CreateEnchant(int optionSetId, int expiration = 0)
+		{
+			var optionSetData = AuraData.OptionSetDb.Find(optionSetId);
+			if (optionSetData == null)
+				throw new ArgumentException("Option set doesn't exist: " + optionSetId);
+
+			bool isSuffix;
+			if ((isSuffix = optionSetData.Category != OptionSetCategory.Prefix) && optionSetData.Category != OptionSetCategory.Suffix)
+				throw new ArgumentException("Option set is neither prefix nor suffix, use custom enchant instead.");
+
+			var item = new Item(optionSetData.ItemId);
+			item.MetaData1.SetInt(isSuffix ? "ENSFIX" : "ENPFIX", optionSetId);
+			if (expiration != 0)
+				item.MetaData1.SetLong(isSuffix ? "XPRSFX" : "XPRPFX", DateTime.Now.AddMinutes(expiration));
+
+			return item;
+		}
+
+		/// <summary>
+		/// Returns enchant with the given option set id.
+		/// </summary>
+		/// <remarks>
+		/// This method allows the creation of enchants with a prefix *and*
+		/// a suffix.
+		/// </remarks>
+		/// <param name="itemId">Id of the enchant scoll item, defaults to item id specified for the *fix.</param>
+		/// <param name="prefix">The option set to use as prefix, 0 for none.</param>
+		/// <param name="suffix">The option set to use as suffix, 0 for none.</param>
+		/// <param name="expiration">The time in minutes after which the enchant expires, 0 for none.</param>
+		/// <returns></returns>
+		public static Item CreateEnchant(int itemId, int prefix, int suffix, int expiration)
+		{
+			if (prefix == 0 && suffix == 0)
+				throw new ArgumentException("Prefix, suffix, or both must be set.");
+
+			OptionSetData prefixData, suffixData;
+
+			// Prefix
+			if (prefix != 0)
+			{
+				prefixData = AuraData.OptionSetDb.Find(prefix);
+				if (prefixData == null) throw new ArgumentException("Option set doesn't exist: " + prefix);
+				if (prefixData.Category != OptionSetCategory.Prefix) throw new ArgumentException("Option set is not a prefix.");
+
+				if (itemId == 0)
+					itemId = prefixData.ItemId;
+			}
+
+			// Suffix
+			if (suffix != 0)
+			{
+				suffixData = AuraData.OptionSetDb.Find(suffix);
+				if (suffixData == null) throw new ArgumentException("Option set doesn't exist: " + suffix);
+				if (suffixData.Category != OptionSetCategory.Suffix) throw new ArgumentException("Option set is not a suffix.");
+
+				if (itemId == 0)
+					itemId = suffixData.ItemId;
+			}
+
+			// Create item
+			var item = new Item(itemId);
+			if (prefix != 0)
+			{
+				item.MetaData1.SetInt("ENPFIX", prefix);
+				if (expiration != 0)
+					item.MetaData1.SetLong("XPRPFX", DateTime.Now.AddMinutes(expiration));
+			}
+			if (suffix != 0)
+			{
+				item.MetaData1.SetInt("ENSFIX", suffix);
+				if (expiration != 0)
+					item.MetaData1.SetLong("XPRSFX", DateTime.Now.AddMinutes(expiration));
+			}
 
 			return item;
 		}
@@ -1013,7 +1163,23 @@ namespace Aura.Channel.World.Entities
 		public void AddUpgradeEffect(params UpgradeEffect[] effects)
 		{
 			lock (_upgrades)
+			{
+				if (_upgrades.Count + effects.Length > byte.MaxValue)
+					throw new ArgumentException("Adding the effects would cause the item to have >255 effects.");
+
 				_upgrades.AddRange(effects);
+			}
+		}
+
+		/// <summary>
+		/// Removes all upgrade effects of the given type.
+		/// Does not update client.
+		/// </summary>
+		/// <param name="type"></param>
+		public void RemoveUpgradeEffects(UpgradeType type)
+		{
+			lock (_upgrades)
+				_upgrades.RemoveAll(a => a.Type == type);
 		}
 
 		/// <summary>
@@ -1024,6 +1190,123 @@ namespace Aura.Channel.World.Entities
 		{
 			lock (_upgrades)
 				return _upgrades.ToArray();
+		}
+
+		/// <summary>
+		/// Applies all upgrade effects of option set to item.
+		/// </summary>
+		/// <param name="optionSetData">Option set to apply.</param>
+		/// <param name="clear">Remove existing upgrade effects of the same type?</param>
+		public void ApplyOptionSet(OptionSetData optionSetData, bool clear)
+		{
+			var rnd = RandomProvider.Get();
+
+			lock (_upgrades)
+			{
+				if (clear)
+					_upgrades.RemoveAll(a => a.Type == optionSetData.Type);
+
+				foreach (var effect in optionSetData.Effects)
+					this.AddUpgradeEffect(effect.GetUpgradeEffect(rnd));
+			}
+		}
+
+		/// <summary>
+		/// Returns all upgrade effects in one base64 string.
+		/// </summary>
+		/// <remarks>
+		/// Structure:
+		///   byte length
+		///   UpgradeEffect[length] effects
+		/// </remarks>
+		/// <returns></returns>
+		public string SerializeUpgradeEffects()
+		{
+			lock (_upgrades)
+			{
+				if (_upgrades.Count == 0)
+					return null;
+
+				// Calculate sizes
+				var upgradeEffectSize = Marshal.SizeOf(typeof(UpgradeEffect));
+				var totalSize = 1 + (upgradeEffectSize * _upgrades.Count);
+
+				// Prepare result
+				var result = new byte[totalSize];
+				result[0] = (byte)_upgrades.Count;
+
+				var ptr = IntPtr.Zero;
+				try
+				{
+					// Create one buffer to use for all effects
+					ptr = Marshal.AllocHGlobal(upgradeEffectSize);
+					var effectBuffer = new byte[upgradeEffectSize];
+
+					// Write all effects to result
+					for (int i = 0; i < _upgrades.Count; ++i)
+					{
+						Marshal.StructureToPtr(_upgrades[i], ptr, true);
+						Marshal.Copy(ptr, effectBuffer, 0, upgradeEffectSize);
+						Buffer.BlockCopy(effectBuffer, 0, result, 1 + upgradeEffectSize * i, upgradeEffectSize);
+					}
+
+					// Return result as base64 string
+					return Convert.ToBase64String(result);
+				}
+				finally
+				{
+					if (ptr != IntPtr.Zero)
+						Marshal.FreeHGlobal(ptr);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Deserializes given string and overrides upgrade effect list
+		/// with the content.
+		/// </summary>
+		/// <param name="effectsBase64"></param>
+		public void DeserializeUpgradeEffects(string effectsBase64)
+		{
+			if (string.IsNullOrWhiteSpace(effectsBase64))
+				return;
+
+			lock (_upgrades)
+			{
+				// Remove current effects
+				_upgrades.Clear();
+
+				// Get data from string
+				var data = Convert.FromBase64String(effectsBase64);
+
+				// Calculate sizes
+				var upgradeEffectSize = Marshal.SizeOf(typeof(UpgradeEffect));
+				var totalSize = 1 + (upgradeEffectSize * data[0]);
+
+				// Check data size
+				if (data.Length != totalSize)
+					throw new ArgumentException("The struct size in the data doesn't match the current struct.");
+
+				var ptr = IntPtr.Zero;
+				try
+				{
+					// Create one buffer to use for all effects
+					ptr = Marshal.AllocHGlobal(upgradeEffectSize);
+
+					// Read all effects from data
+					for (int i = 0; i < data[0]; ++i)
+					{
+						Marshal.Copy(data, 1 + upgradeEffectSize * i, ptr, upgradeEffectSize);
+						var val = (UpgradeEffect)Marshal.PtrToStructure(ptr, typeof(UpgradeEffect));
+						_upgrades.Add(val);
+					}
+				}
+				finally
+				{
+					if (ptr != IntPtr.Zero)
+						Marshal.FreeHGlobal(ptr);
+				}
+			}
 		}
 	}
 }

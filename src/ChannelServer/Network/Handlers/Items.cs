@@ -320,6 +320,15 @@ namespace Aura.Channel.Network.Handlers
 
 			var creature = client.GetCreatureSafe(packet.Id);
 
+			// Check set
+			if (!Enum.IsDefined(typeof(WeaponSet), set))
+			{
+				Log.Warning("Creature '{0:X16}' tried to switch to unknown weapon set '{1}'.", creature.EntityId, set);
+				Send.SwitchSetR(creature, false);
+				return;
+			}
+
+			// Check if creature can change their equip
 			if (!creature.Can(Locks.ChangeEquipment))
 			{
 				Log.Debug("ChangeEquipment locked for '{0}'.", creature.Name);
@@ -332,11 +341,7 @@ namespace Aura.Channel.Network.Handlers
 				creature.Conditions.Deactivate(ConditionsD.WayOfTheGun);
 
 			creature.StopMove();
-
-			creature.Inventory.WeaponSet = set;
-
-			Send.UpdateWeaponSet(creature);
-			//ChannelServer.Instance.World.CreatureStatsUpdate(creature);
+			creature.Inventory.ChangeWeaponSet(set);
 
 			Send.SwitchSetR(creature, true);
 		}

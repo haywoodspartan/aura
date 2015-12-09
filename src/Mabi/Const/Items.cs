@@ -479,6 +479,9 @@ namespace Aura.Mabi.Const
 		/// <summary>
 		/// Effect in orange inside the item attributes.
 		/// </summary>
+		/// <remarks>
+		/// Used only by Holy Flame?
+		/// </remarks>
 		ItemAttribute = 5,
 
 		/// <summary>
@@ -646,6 +649,11 @@ namespace Aura.Mabi.Const
 		/// <summary>
 		/// Treats value as a percentage.
 		/// </summary>
+		/// <remarks>
+		/// 1 = 0.1%
+		/// 10 = 1.0%
+		/// 156 = 15.6%
+		/// </remarks>
 		Percent = 0x01,
 
 		// v Obscure
@@ -716,7 +724,7 @@ namespace Aura.Mabi.Const
 		/// </summary>
 		/// <remarks>
 		/// "While in a state of Crazy Chocolate Balls"
-		/// Value = condition bit
+		/// Stat+ValueType = condition bit
 		/// </remarks>
 		InAStateOf = 0x10,
 
@@ -724,7 +732,7 @@ namespace Aura.Mabi.Const
 		/// While holding title...
 		/// </summary>
 		/// <remarks>
-		/// Value = title id
+		/// Stat+ValueType = title id
 		/// </remarks>
 		HoldingTitle = 0x11,
 
@@ -748,6 +756,9 @@ namespace Aura.Mabi.Const
 		/// <summary>
 		/// When item is broken.
 		/// </summary>
+		/// <remarks>
+		/// Stat = bool: 0=intact, 1=broken
+		/// </remarks>
 		WhenBroken = 0x14,
 
 		/// <summary>
@@ -765,5 +776,14 @@ namespace Aura.Mabi.Const
 		/// Stat: Pet, BarrierSpikes, or Golem
 		/// </remarks>
 		WhileSummoned = 0x18,
+	}
+
+	/// <summary>
+	/// Selected weapon set in inventory.
+	/// </summary>
+	public enum WeaponSet : byte
+	{
+		First = 0,
+		Second = 1,
 	}
 }

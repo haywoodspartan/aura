@@ -175,7 +175,7 @@ namespace Aura.Channel.Skills.Guns
 			var bulletDist = 0;
 
 			// Get targets in descending order for effect packet using bulletDist
-			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).ToList();
+			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).Where(x => attacker.CanTarget(x)).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).ToList();
 
 			// Filter by max targets [var5] and bullet count
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
@@ -193,7 +193,7 @@ namespace Aura.Channel.Skills.Guns
 			// Add Target count to effect packet
 			shootEffect.PutShort((short)targets.Count);
 
-			foreach (var target in targets.Where(cr => !cr.IsDead && attacker.CanTarget(cr)))
+			foreach (var target in targets)
 			{
 				var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
 				tAction.Set(TargetOptions.Result | TargetOptions.MultiHit);

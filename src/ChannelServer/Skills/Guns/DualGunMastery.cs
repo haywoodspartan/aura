@@ -136,6 +136,7 @@ namespace Aura.Channel.Skills.Guns
 				// Prepare Combat Actions
 				var aAction = new AttackerAction(CombatActionType.RangeHit, attacker, targetEntityId);
 				aAction.Set(AttackerOptions.Result | AttackerOptions.KnockBackHit1 | AttackerOptions.KnockBackHit2);
+				aAction.SkillId = skill.Info.Id; // Dual Gun Mastery
 
 				var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
 				tAction.Set(TargetOptions.Result);

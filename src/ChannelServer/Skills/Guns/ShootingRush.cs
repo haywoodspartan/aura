@@ -198,7 +198,7 @@ namespace Aura.Channel.Skills.Guns
 			*/
 			// ----------------------------------------------------------------------------------
 
-			// Prepare Combat Actions
+			// Prepare attacker action
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
 
 			var aAction = new AttackerAction(CombatActionType.SpecialHit, attacker, targetAreaId);
@@ -207,19 +207,19 @@ namespace Aura.Channel.Skills.Guns
 
 			aAction.Stun = AttackerStun;
 
-			// Prepare effect to send
+			// Prepare Multi-Enemy effect
 			var shootEffect = new Packet(Op.Effect, attacker.EntityId);
 			shootEffect.PutInt(339).PutShort((short)skill.Info.Id).PutInt(0);
-
 			var bulletDist = 0;
 
 			// Get targets in descending order of distance for the effect packet
-			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).ToList();
+			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).Where(x => attacker.CanTarget(x)).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).ToList();
 
 			// Add Target count to effect packet
 			shootEffect.PutShort((short)targets.Count);
 
-			foreach (var target in targets.Where(cr => !cr.IsDead && attacker.CanTarget(cr)))
+			// Prepare target actions
+			foreach (var target in targets)
 			{
 				var tAction = new TargetAction(CombatActionType.SkillActiveHit, target, attacker, SkillId.None);
 				tAction.Set(TargetOptions.Result | TargetOptions.MultiHit);

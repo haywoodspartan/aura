@@ -136,10 +136,6 @@ namespace Aura.Channel.Skills.Guns
 
 			attacker.StopMove(); // Unnecessary at the moment, but who knows.
 
-			// Effects
-			Send.Effect(attacker, 335, (byte)1, (byte)1, (short)131, (short)3, 760, (byte)1, (short)433);
-			Send.Effect(attacker, 231, (byte)0);
-
 			// Note: Add BulletDist later.
 
 			// Center Points Calculation
@@ -174,7 +170,7 @@ namespace Aura.Channel.Skills.Guns
 			*/
 			// ----------------------------------------------------------------------------------
 
-			// Prepare Combat Actions
+			// Prepare attacker action
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
 
 			var aAction = new AttackerAction(CombatActionType.SpecialHit, attacker, targetAreaId);
@@ -183,14 +179,8 @@ namespace Aura.Channel.Skills.Guns
 
 			aAction.Stun = AttackerStun;
 
-			//Prepare effect to send
-			var shootEffect = new Packet(Op.Effect, attacker.EntityId);
-			shootEffect.PutInt(339).PutShort((short)skill.Info.Id).PutInt(95);
-
-			var bulletDist = 0;
-
 			// Get targets in descending order for effect packet using bulletDist
-			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).Where(x => attacker.CanTarget(x)).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).ToList();
+			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).Where(x => attacker.CanTarget(x)).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).Reverse().ToList();
 
 			// Filter by max targets [var5] and bullet count
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
@@ -205,9 +195,16 @@ namespace Aura.Channel.Skills.Guns
 				targets = targets.Take((int)skill.RankData.Var5).ToList();
 			}
 
-			// Add Target count to effect packet
-			shootEffect.PutShort((short)targets.Count);
+			// Effects & Etc
+			Send.Effect(attacker, 231, (byte)0);
 
+			var shootEffect = new Packet(Op.Effect, attacker.EntityId);
+			shootEffect.PutInt(339).PutShort((short)skill.Info.Id).PutInt(95).PutShort((short)targets.Count);
+			var bulletDist = -380;
+
+			Send.Effect(attacker, 335, (byte)1, (byte)1, (short)131, (short)targets.Count, 1140, (byte)2, (short)433, (short)1133);
+
+			// Prepare target actions
 			foreach (var target in targets)
 			{
 				var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
@@ -216,7 +213,7 @@ namespace Aura.Channel.Skills.Guns
 				tAction.MultiHitDamageCount = 4;
 				tAction.MultiHitDamageShowTime = 95;
 				tAction.MultiHitUnk1 = 0;
-				tAction.MultiHitUnk2 = 488249110;
+				tAction.MultiHitUnk2 = 421075482;
 				cap.Add(tAction);
 
 				/// Damage is calculated as (Skill Rank Damage per Target [var2 (for 4 bullets?)] * Number of Targets)
@@ -288,7 +285,7 @@ namespace Aura.Channel.Skills.Guns
 					tAction.Creature.Stun = tAction.Stun;
 				}
 
-				bulletDist = target.GetDestination().GetDistance(attackerPos);
+				bulletDist += 380;
 				tAction.Delay = bulletDist;
 				shootEffect.PutInt(bulletDist).PutLong(target.EntityId);
 			}

@@ -291,6 +291,8 @@ namespace Aura.Channel.Skills.Guns
 		{
 			Send.SkillComplete(creature, skill.Info.Id);
 
+			creature.Unlock(Locks.Walk | Locks.Run);
+
 			var unkPacket1 = new Packet(0xA43B, creature.EntityId);
 			unkPacket1.PutShort(0).PutInt(0);
 			creature.Region.Broadcast(unkPacket1, creature);

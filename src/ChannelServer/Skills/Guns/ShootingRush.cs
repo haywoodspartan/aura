@@ -121,7 +121,7 @@ namespace Aura.Channel.Skills.Guns
 
 			// Distance (Length) & Radius (Width)
 			var distance = skill.RankData.Var6;
-			var radius = skill.RankData.Var5 / 2;
+			var radius = skill.RankData.Var5;
 
 			attacker.StopMove();
 
@@ -164,17 +164,39 @@ namespace Aura.Channel.Skills.Guns
 			var pointDist = Math.Sqrt((distance * distance) + (radius * radius)); // Pythagorean Theorem - Distance between point and opposite side's center.
 			var rotationAngle = Math.Asin(radius / pointDist);
 
+			// Note: My previous error was that I used pointDist for the GetRelative distance,
+			// which was wrong since it adds that distance to the current distance.
+			// The only extra distance I needed was that of the pointDist - distance.
+
 			// Calculate Points 1 & 2
-			var posTemp1 = attackerPos.GetRelative(newAttackerPos, (int)pointDist);
+			var posTemp1 = attackerPos.GetRelative(newAttackerPos, (int)(pointDist - distance));
 			var pointTemp1 = new Point(posTemp1.X, posTemp1.Y);
 			var p1 = this.RotatePoint(pointTemp1, attackerPoint, rotationAngle); // Rotate Positive - moves point to position where distance from newAttackerPos is range and Distance from attackerPos is pointDist.
 			var p2 = this.RotatePoint(pointTemp1, attackerPoint, (rotationAngle * -1)); // Rotate Negative - moves point to opposite side of p1
 
 			// Calculate Points 3 & 4
-			var posTemp2 = newAttackerPos.GetRelative(attackerPos, (int)pointDist);
+			var posTemp2 = newAttackerPos.GetRelative(attackerPos, (int)(pointDist - distance));
 			var pointTemp2 = new Point(posTemp2.X, posTemp2.Y);
 			var p3 = this.RotatePoint(pointTemp2, newAttackerPoint, rotationAngle); // Rotate Positive
 			var p4 = this.RotatePoint(pointTemp2, newAttackerPoint, (rotationAngle * -1)); // Rotate Negative
+
+			// DEBUG ----------------------------------------------------------------------------
+			/*
+			var prop1 = new Prop(24830, attacker.Region.Id, p1.X, p1.Y, 1);
+			attacker.Region.AddProp(prop1);
+			var prop2 = new Prop(24830, attacker.Region.Id, p2.X, p2.Y, 1);
+			attacker.Region.AddProp(prop2);
+			var prop3 = new Prop(24830, attacker.Region.Id, p3.X, p3.Y, 1);
+			attacker.Region.AddProp(prop3);
+			var prop4 = new Prop(24830, attacker.Region.Id, p4.X, p4.Y, 1);
+			attacker.Region.AddProp(prop4);
+
+			var attackerProp = new Prop(24830, attacker.Region.Id, attackerPoint.X, attackerPoint.Y, 1);
+			attacker.Region.AddProp(attackerProp);
+			var newAttackerProp = new Prop(24830, attacker.Region.Id, newAttackerPoint.X, newAttackerPoint.Y, 1);
+			attacker.Region.AddProp(newAttackerProp);
+			*/
+			// ----------------------------------------------------------------------------------
 
 			// Prepare Combat Actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);

@@ -129,8 +129,10 @@ namespace Aura.Channel.Skills.Guns
 
 			// Distance & Radius
 			var distance = skill.RankData.Var7;
-			var radius = skill.RankData.Var6 / 2;
-			var newTargetPosition = attackerPos.GetRelative(targetAreaPos, (int)distance); // Get position for use of true rectangle distance
+			var radius = skill.RankData.Var6;
+
+			var attackerToTargetPointDist = attackerPos.GetDistance(targetAreaPos);
+			var newTargetPosition = attackerPos.GetRelative(targetAreaPos, (int)(distance - attackerToTargetPointDist)); // Get position for use of true rectangle distance
 
 			attacker.StopMove(); // Unnecessary at the moment, but who knows.
 
@@ -148,16 +150,29 @@ namespace Aura.Channel.Skills.Guns
 			var rotationAngle = Math.Asin(radius / pointDist);
 
 			// Calculate Points 1 & 2
-			var posTemp1 = attackerPos.GetRelative(newTargetPosition, (int)pointDist);
+			var posTemp1 = attackerPos.GetRelative(newTargetPosition, (int)(pointDist - distance));
 			var pointTemp1 = new Point(posTemp1.X, posTemp1.Y);
 			var p1 = this.RotatePoint(pointTemp1, attackerPoint, rotationAngle);
 			var p2 = this.RotatePoint(pointTemp1, attackerPoint, (rotationAngle * -1));
 
 			// Calculate Points 3 & 4
-			var posTemp2 = newTargetPosition.GetRelative(attackerPos, (int)pointDist);
+			var posTemp2 = newTargetPosition.GetRelative(attackerPos, (int)(pointDist - distance));
 			var pointTemp2 = new Point(posTemp2.X, posTemp2.Y);
 			var p3 = this.RotatePoint(pointTemp2, targetPoint, rotationAngle);
 			var p4 = this.RotatePoint(pointTemp2, targetPoint, (rotationAngle * -1));
+
+			// DEBUG ----------------------------------------------------------------------------
+			/*
+			var prop1 = new Prop(24830, attacker.Region.Id, p1.X, p1.Y, 1);
+			attacker.Region.AddProp(prop1);
+			var prop2 = new Prop(24830, attacker.Region.Id, p2.X, p2.Y, 1);
+			attacker.Region.AddProp(prop2);
+			var prop3 = new Prop(24830, attacker.Region.Id, p3.X, p3.Y, 1);
+			attacker.Region.AddProp(prop3);
+			var prop4 = new Prop(24830, attacker.Region.Id, p4.X, p4.Y, 1);
+			attacker.Region.AddProp(prop4);
+			*/
+			// ----------------------------------------------------------------------------------
 
 			// Prepare Combat Actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);

@@ -141,6 +141,8 @@ namespace Aura.Channel.Skills.Guns
 				newAttackerPos = attackerPos.GetRelative(targetAreaPos, ((int)extraDistance * -1));
 			}
 
+			attacker.TurnTo(newAttackerPos);
+
 			// Effects & Etc
 			Send.Effect(attacker, 335, (byte)1, (byte)1, (short)131, (short)6, 1599, (byte)6, (short)66, (short)233, (short)500, (short)700, (short)966, (short)1166);
 			Send.MotionCancel2(attacker, 0);

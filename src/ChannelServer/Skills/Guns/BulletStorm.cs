@@ -201,8 +201,10 @@ namespace Aura.Channel.Skills.Guns
 			var shootEffect = new Packet(Op.Effect, attacker.EntityId);
 			shootEffect.PutInt(339).PutShort((short)skill.Info.Id).PutInt(95).PutShort((short)targets.Count);
 			var bulletDist = -380;
+			var totalDelay = 0;
 
 			Send.Effect(attacker, 335, (byte)1, (byte)1, (short)131, (short)targets.Count, 1140, (byte)2, (short)433, (short)1133);
+			Send.UseMotion(attacker, 131, 3, true, false);
 
 			// Prepare target actions
 			foreach (var target in targets)
@@ -286,8 +288,16 @@ namespace Aura.Channel.Skills.Guns
 				}
 
 				bulletDist += 380;
+				totalDelay += 380;
 				tAction.Delay = bulletDist;
 				shootEffect.PutInt(bulletDist).PutLong(target.EntityId);
+
+				System.Threading.Timer t = null;
+				t = new System.Threading.Timer(_ =>
+				{
+					attacker.TurnTo(target.GetPosition());
+					GC.KeepAlive(t);
+				}, null, bulletDist, System.Threading.Timeout.Infinite);
 			}
 			aAction.Creature.Stun = aAction.Stun;
 			cap.Handle();
@@ -304,13 +314,14 @@ namespace Aura.Channel.Skills.Guns
 				Send.ItemUpdate(attacker, attacker.RightHand);
 			}
 
-			Send.UseMotion(attacker, 131, 4, false, false);
+			System.Threading.Timer t2 = null;
+			t2 = new System.Threading.Timer(_ =>
+			{
+				Send.UseMotion(attacker, 131, 4, false, false);
+				GC.KeepAlive(t2);
+			}, null, totalDelay, System.Threading.Timeout.Infinite);
 
 			this.Complete(attacker, skill, packet);
-
-			var unkPacket1 = new Packet(0xA43B, attacker.EntityId);
-			unkPacket1.PutShort(0).PutInt(0);
-			attacker.Region.Broadcast(unkPacket1, attacker);
 		}
 
 		/// <summary>
@@ -322,11 +333,10 @@ namespace Aura.Channel.Skills.Guns
 		public void Complete(Creature creature, Skill skill, Packet packet)
 		{
 			Send.SkillComplete(creature, skill.Info.Id);
-			skill.State = SkillState.Completed;
 
-			creature.Skills.ActiveSkill = null;
-
-			creature.Unlock(Locks.Walk | Locks.Run);
+			var unkPacket1 = new Packet(0xA43B, creature.EntityId);
+			unkPacket1.PutShort(0).PutInt(0);
+			creature.Region.Broadcast(unkPacket1, creature);
 		}
 
 		/// <summary>

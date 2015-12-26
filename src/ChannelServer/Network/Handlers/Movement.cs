@@ -198,5 +198,29 @@ namespace Aura.Channel.Network.Handlers
 
 			// Do something with this information?
 		}
+
+		/// <summary>
+		/// Used when the client triggers TurnTo
+		/// </summary>
+		/// <remarks>
+		/// This has only been seen in BulletStorm so far.
+		/// </remarks>
+		/// <example>
+		/// 001 [........BFE318C3] Float  : -0.59677
+		/// 002 [........BFE9AD58] Float  : -0.80241
+		/// </example>
+		/// <param name="client"></param>
+		/// <param name="packet"></param>
+		[PacketHandler(Op.TurnTo)]
+		public void TurnTo(ChannelClient client, Packet packet)
+		{
+			var x = packet.GetFloat();
+			var y = packet.GetFloat();
+			var turnToPos = new Position((int)x, (int)y);
+
+			var creature = client.GetCreatureSafe(packet.Id);
+
+			creature.TurnTo(turnToPos);
+		}
 	}
 }

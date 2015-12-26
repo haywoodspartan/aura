@@ -279,10 +279,6 @@ namespace Aura.Channel.Skills.Guns
 			}
 
 			this.Complete(attacker, skill, packet);
-
-			var unkPacket1 = new Packet(0xA43B, attacker.EntityId);
-			unkPacket1.PutShort(0).PutInt(0);
-			attacker.Region.Broadcast(unkPacket1, attacker);
 		}
 
 		/// <summary>
@@ -294,11 +290,10 @@ namespace Aura.Channel.Skills.Guns
 		public void Complete(Creature creature, Skill skill, Packet packet)
 		{
 			Send.SkillComplete(creature, skill.Info.Id);
-			skill.State = SkillState.Completed;
 
-			creature.Skills.ActiveSkill = null;
-
-			creature.Unlock(Locks.Walk | Locks.Run);
+			var unkPacket1 = new Packet(0xA43B, creature.EntityId);
+			unkPacket1.PutShort(0).PutInt(0);
+			creature.Region.Broadcast(unkPacket1, creature);
 		}
 
 		/// <summary>

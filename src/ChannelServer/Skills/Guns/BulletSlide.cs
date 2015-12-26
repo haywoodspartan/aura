@@ -61,6 +61,11 @@ namespace Aura.Channel.Skills.Guns
 		private const int KnockbackDistance = 100;
 
 		/// <summary>
+		/// Extra attack range for the skill; normal range is too short and gun range is too long.
+		/// </summary>
+		private const int ExtraAttackRange = 100;
+
+		/// <summary>
 		/// Subscribes handlers to events required for training.
 		/// </summary>
 		public void Init()
@@ -134,7 +139,7 @@ namespace Aura.Channel.Skills.Guns
 			}
 
 			// Check Range
-			var range = attacker.AttackRangeFor(target) + 50;
+			var range = attacker.AttackRangeFor(target) + ExtraAttackRange;
 			if (!attacker.GetPosition().InRange(target.GetPosition(), range))
 			{
 				Send.Notice(attacker, Localization.Get("You are too far away."));

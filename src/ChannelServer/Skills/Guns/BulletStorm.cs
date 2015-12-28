@@ -39,6 +39,11 @@ namespace Aura.Channel.Skills.Guns
 		private const string BulletCountTag = "GVBC";
 
 		/// <summary>
+		/// Max Bullets for Gun
+		/// </summary>
+		private const string BulletsMaxTag = "BulletsMax";
+
+		/// <summary>
 		/// Attacker's stun upon using the skill
 		/// </summary>
 		private const int AttackerStun = 0;
@@ -184,6 +189,10 @@ namespace Aura.Channel.Skills.Guns
 
 			// Filter by max targets [var5] and bullet count
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);
+
+			if (attacker.Conditions.Has(ConditionsD.WayOfTheGun))
+				bulletCount = attacker.RightHand.MetaData1.GetShort(BulletsMaxTag);
+
 			var maxTargetsBulletCount = (int)Math.Floor((decimal)(bulletCount / 4));
 
 			if (maxTargetsBulletCount < skill.RankData.Var5)
@@ -336,9 +345,11 @@ namespace Aura.Channel.Skills.Guns
 
 			creature.Unlock(Locks.Walk | Locks.Run);
 
-			var unkPacket1 = new Packet(0xA43B, creature.EntityId);
+			/*
+			var unkPacket1 = new Packet(0xA43B, creature.EntityId); //?
 			unkPacket1.PutShort(0).PutInt(0);
 			creature.Region.Broadcast(unkPacket1, creature);
+			*/
 		}
 
 		/// <summary>
@@ -349,6 +360,7 @@ namespace Aura.Channel.Skills.Guns
 		public void Cancel(Creature creature, Skill skill)
 		{
 			Send.MotionCancel2(creature, 0);
+			creature.Unlock(Locks.Walk | Locks.Run);
 		}
 
 		private Point RotatePoint(Point point, Point pivot, double radians)

@@ -293,9 +293,11 @@ namespace Aura.Channel.Skills.Guns
 
 			creature.Unlock(Locks.Walk | Locks.Run);
 
-			var unkPacket1 = new Packet(0xA43B, creature.EntityId);
+			/*
+			var unkPacket1 = new Packet(0xA43B, creature.EntityId); //?
 			unkPacket1.PutShort(0).PutInt(0);
 			creature.Region.Broadcast(unkPacket1, creature);
+			*/
 		}
 
 		/// <summary>

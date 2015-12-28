@@ -8,6 +8,7 @@ using Aura.Channel.Skills.Combat;
 using Aura.Channel.Skills.Life;
 using Aura.Channel.World;
 using Aura.Channel.World.Entities;
+using Aura.Data;
 using Aura.Mabi;
 using Aura.Mabi.Const;
 using Aura.Shared.Network;
@@ -603,6 +604,18 @@ namespace Aura.Channel.Scripting.Scripts
 		}
 
 		/// <summary>
+		/// Returns a random value from the given ones.
+		/// </summary>
+		/// <param name="values"></param>
+		protected T Rnd<T>(params T[] values)
+		{
+			if (values == null || values.Length == 0)
+				throw new ArgumentException("values may not be null or empty.");
+
+			return values[this.Random(values.Length)];
+		}
+
+		/// <summary>
 		/// Returns true if AI hates target creature.
 		/// </summary>
 		/// <param name="target"></param>
@@ -651,20 +664,50 @@ namespace Aura.Channel.Scripting.Scripts
 		/// The Wiki is speaking of a passive Sharp Mind skill, but it doesn't
 		/// seem to be a skill at all anymore.
 		/// 
-		/// TODO: Implement old Sharp Mind (optional).
+		/// A failed Sharp Mind is supposed to be displayed as an "X",
+		/// assumingly statuses 3 and 4 were used for this in the past,
+		/// but the current NA client doesn't do anything when sending
+		/// them, so we use skill id 0 instead, which results in a
+		/// question mark, originally used for skills unknown to the
+		/// player.
 		/// 
-		/// TODO: To implement the old Sharp Mind we have to figure out how
-		///   to display a failed Sharp Mind (X). "?" is shown for skill id 0.
-		///   Older logs make use of status 3 and 4, but the current NA client
-		///   doesn't seem to react to them.
-		///   If we can't get X to work we could use ? for both.
+		/// Even on servers that didn't have Sharp Mind officially,
+		/// the packets were still sent to the client, it just didn't
+		/// display them, assumingly because the players didn't have
+		/// the skill. Since this is not the case for the NA client,
+		/// we control it from the server.
+		/// 
+		/// TODO: When we move AIs to an NPC client, the entire SharpMind
+		///   handling would move to the SkillPrepare handler.
 		/// </remarks>
 		/// <param name="skillId"></param>
 		/// <param name="status"></param>
 		protected void SharpMind(SkillId skillId, SharpMindStatus status)
 		{
+			// Some races are "immune" to Sharp Mind
+			if (this.Creature.RaceData.SharpMindImmune)
+				return;
+
+			var passive = AuraData.FeaturesDb.IsEnabled("PassiveSharpMind");
+
+			// Send to players in range, one after the other, so we have control
+			// over the recipients.
 			foreach (var creature in _playersInRange)
 			{
+				// Handle active (old) Sharp Mind
+				if (!passive)
+				{
+					// Don't send if player doesn't have Sharp Mind.
+					if (!creature.Skills.Has(SkillId.SharpMind))
+						continue;
+
+					// Set skill id to 0, so the bubble displays a question mark,
+					// if skill is unknown to the player or Sharp Mind fails.
+					if (!creature.Skills.Has(skillId) || this.Random() >= ChannelServer.Instance.Conf.World.SharpMindChance)
+						skillId = SkillId.None;
+				}
+
+				// Cancel and None are sent for removing the bubble
 				if (status == SharpMindStatus.Cancelling || status == SharpMindStatus.None)
 				{
 					Send.SharpMind(this.Creature, creature, skillId, SharpMindStatus.Cancelling);
@@ -675,6 +718,15 @@ namespace Aura.Channel.Scripting.Scripts
 					Send.SharpMind(this.Creature, creature, skillId, status);
 				}
 			}
+		}
+
+		/// <summary>
+		/// Proxy for Localization.Get.
+		/// </summary>
+		/// <param name="phrase"></param>
+		protected static string L(string phrase)
+		{
+			return Localization.Get(phrase);
 		}
 
 		// Flow control
@@ -745,6 +797,22 @@ namespace Aura.Channel.Scripting.Scripts
 		protected IEnumerable Say(string msg)
 		{
 			Send.Chat(this.Creature, msg);
+			yield break;
+		}
+
+		/// <summary>
+		/// Makes creature say one of the messages in public chat.
+		/// </summary>
+		/// <param name="msg"></param>
+		/// <returns></returns>
+		protected IEnumerable Say(params string[] msgs)
+		{
+			if (msgs == null || msgs.Length == 0)
+				yield break;
+
+			var msg = msgs[this.Random(msgs.Length)];
+			if (!string.IsNullOrWhiteSpace(msg))
+				Send.Chat(this.Creature, msg);
 			yield break;
 		}
 
@@ -953,21 +1021,28 @@ namespace Aura.Channel.Scripting.Scripts
 		/// Creature tries to get away from target.
 		/// </summary>
 		/// <param name="minDistance"></param>
+		/// <param name="walk"></param>
+		/// <param name="timeout"></param>
 		/// <returns></returns>
-		protected IEnumerable KeepDistance(int minDistance, bool walk = false)
+		protected IEnumerable KeepDistance(int minDistance, bool walk = false, int timeout = 5000)
 		{
-			Position pos, targetPos;
+			var until = _timestamp + Math.Max(0, timeout);
 
-			while ((pos = this.Creature.GetPosition()).InRange((targetPos = this.Creature.Target.GetPosition()), minDistance))
+			while (_timestamp < until)
 			{
-				// The position to move to is on the line between pos and targetPos,
-				// -distance from target to creature, resulting in a position
-				// "behind" the creature.
-				foreach (var action in this.MoveTo(pos.GetRelative(targetPos, -(minDistance + 50)), walk))
-					yield return action;
-			}
+				var pos = this.Creature.GetPosition();
+				var targetPos = this.Creature.Target.GetPosition();
 
-			yield return true;
+				if (pos.InRange(targetPos, minDistance))
+				{
+					// The position to move to is on the line between pos and targetPos,
+					// -distance from target to creature, resulting in a position
+					// "behind" the creature.
+					this.ExecuteOnce(this.MoveTo(pos.GetRelative(targetPos, -(minDistance + 50)), walk));
+				}
+
+				yield return true;
+			}
 		}
 
 		/// <summary>
@@ -1091,7 +1166,12 @@ namespace Aura.Channel.Scripting.Scripts
 			var skill = this.Creature.Skills.Get(skillId);
 			if (skill == null)
 			{
-				Log.Warning("AI.PrepareSkill: AI '{0}' tried to prepare skill '{2}', that its creature '{1}' doesn't have.", this.GetType().Name, this.Creature.RaceId, skillId);
+				// The AIs are designed to work with multiple races,
+				// even if they might not possess certain skills.
+				// We don't need a warning if they don't have the skill,
+				// they simply shouldn't do anything in that case.
+
+				//Log.Warning("AI.PrepareSkill: AI '{0}' tried to prepare skill '{2}', that its creature '{1}' doesn't have.", this.GetType().Name, this.Creature.RaceId, skillId);
 				yield break;
 			}
 
@@ -1335,6 +1415,16 @@ namespace Aura.Channel.Scripting.Scripts
 			{
 				Log.Unimplemented("AI.StopSkill: Skill stop method for '{0}'.", skillId);
 			}
+		}
+
+		/// <summary>
+		/// Returns true if AI creature has the skill.
+		/// </summary>
+		/// <param name="skillId"></param>
+		/// <returns></returns>
+		protected bool HasSkill(SkillId skillId)
+		{
+			return this.Creature.Skills.Has(skillId);
 		}
 
 		// ------------------------------------------------------------------

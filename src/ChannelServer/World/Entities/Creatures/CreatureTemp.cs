@@ -40,6 +40,9 @@ namespace Aura.Channel.World.Entities.Creatures
 		// Final Hit training counters
 		public int FinalHitKillCount, FinalHitKillCountStrong, FinalHitKillCountAwful, FinalHitKillCountBoss;
 
+		// Way of the Gun training counter
+		public int WOTGKillCount;
+		
 		// Backup of target's position when gathering, for run away check
 		public Position GatheringTargetPosition;
 

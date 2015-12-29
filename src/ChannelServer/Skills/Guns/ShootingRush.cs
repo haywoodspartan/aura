@@ -29,7 +29,7 @@ namespace Aura.Channel.Skills.Guns
 	/// Var5: Attack Spread
 	/// Var6: Attack Distance
 	[Skill(SkillId.ShootingRush)]
-	public class ShootingRush : ISkillHandler, IPreparable, IReadyable, IUseable, ICompletable, ICancelable
+	public class ShootingRush : ISkillHandler, IPreparable, IReadyable, IUseable, ICompletable, ICancelable, IInitiableSkillHandler
 	{
 		/// <summary>
 		/// Bullet Count Tag for Gun
@@ -55,6 +55,15 @@ namespace Aura.Channel.Skills.Guns
 		/// Target's stability reduction
 		/// </summary>
 		private const int StabilityReduction = 10;
+
+		// <summary>
+		/// Subscribes handlers to events required for training.
+		/// </summary>
+		public void Init()
+		{
+			ChannelServer.Instance.Events.CreatureAttackedByPlayer += this.OnCreatureAttackedByPlayer;
+			ChannelServer.Instance.Events.CreatureAttacks += this.OnCreatureAttacks;
+		}
 
 		/// <summary>
 		/// Prepares the skill
@@ -144,17 +153,17 @@ namespace Aura.Channel.Skills.Guns
 			attacker.TurnTo(newAttackerPos);
 
 			// Effects & Etc
-			Send.Effect(attacker, 335, (byte)1, (byte)1, (short)131, (short)6, 1599, (byte)6, (short)66, (short)233, (short)500, (short)700, (short)966, (short)1166);
+			Send.Effect(attacker, 335, (byte)1, (byte)1, (short)131, (short)6, 1599, (byte)6, (short)66, (short)233, (short)500, (short)700, (short)966, (short)1166); // ?
 			Send.MotionCancel2(attacker, 0);
-			Send.UseMotion(attacker, 131, 6, false, false);
+			Send.UseMotion(attacker, 131, 6, false, false); // Shooting Rush Motion
 
 			var unkPacket2 = new Packet(0x6D64, attacker.EntityId); // ?
 			unkPacket2.PutInt(1599).PutInt(131).PutInt(7).PutByte(0).PutShort(0);
 			attacker.Region.Broadcast(unkPacket2, attacker);
 
-			Send.Effect(attacker, 329, (byte)1, (byte)0);
+			Send.Effect(attacker, 329, (byte)1, (byte)0); // ?
 			attacker.Conditions.Activate(ConditionsD.Steadfast);
-			Send.Effect(attacker, 340, (byte)1, (float)newAttackerPos.X, (float)newAttackerPos.Y, (float)distance, 1599);
+			Send.Effect(attacker, 340, (byte)1, (float)newAttackerPos.X, (float)newAttackerPos.Y, (float)distance, 1599); // ??
 
 			// Set creature position to new position.
 			attacker.SetPosition(newAttackerPos.X, newAttackerPos.Y);
@@ -182,24 +191,6 @@ namespace Aura.Channel.Skills.Guns
 			var p3 = this.RotatePoint(pointTemp2, newAttackerPoint, rotationAngle); // Rotate Positive
 			var p4 = this.RotatePoint(pointTemp2, newAttackerPoint, (rotationAngle * -1)); // Rotate Negative
 
-			// DEBUG ----------------------------------------------------------------------------
-			/*
-			var prop1 = new Prop(24830, attacker.Region.Id, p1.X, p1.Y, 1);
-			attacker.Region.AddProp(prop1);
-			var prop2 = new Prop(24830, attacker.Region.Id, p2.X, p2.Y, 1);
-			attacker.Region.AddProp(prop2);
-			var prop3 = new Prop(24830, attacker.Region.Id, p3.X, p3.Y, 1);
-			attacker.Region.AddProp(prop3);
-			var prop4 = new Prop(24830, attacker.Region.Id, p4.X, p4.Y, 1);
-			attacker.Region.AddProp(prop4);
-
-			var attackerProp = new Prop(24830, attacker.Region.Id, attackerPoint.X, attackerPoint.Y, 1);
-			attacker.Region.AddProp(attackerProp);
-			var newAttackerProp = new Prop(24830, attacker.Region.Id, newAttackerPoint.X, newAttackerPoint.Y, 1);
-			attacker.Region.AddProp(newAttackerProp);
-			*/
-			// ----------------------------------------------------------------------------------
-
 			// Prepare attacker action
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
 
@@ -211,7 +202,7 @@ namespace Aura.Channel.Skills.Guns
 
 			// Prepare Multi-Enemy effect
 			var shootEffect = new Packet(Op.Effect, attacker.EntityId);
-			shootEffect.PutInt(339).PutShort((short)skill.Info.Id).PutInt(0);
+			shootEffect.PutInt(Effect.BulletTrail).PutShort((short)skill.Info.Id).PutInt(0);
 			var bulletDist = 0;
 
 			// Get targets in descending order of distance for the effect packet
@@ -329,6 +320,115 @@ namespace Aura.Channel.Skills.Guns
 		public void Cancel(Creature creature, Skill skill)
 		{
 			Send.MotionCancel2(creature, 0);
+		}
+
+		/// <summary>
+		/// Training, called when someone attacks something.
+		/// </summary>
+		/// <param name="action"></param>
+		public void OnCreatureAttackedByPlayer(TargetAction action)
+		{
+			// Guns use Combat Mastery as TargetAction skill, so check for AttackerAction skill
+			if (action.AttackerSkillId != SkillId.ShootingRush)
+				return;
+
+			// Get skill
+			var attackerSkill = action.Attacker.Skills.Get(SkillId.ShootingRush);
+			if (attackerSkill == null) return; // Should be impossible.
+
+			// Get targets
+			var targets = action.Pack.GetTargets();
+
+			// Learning by attacking
+			switch (attackerSkill.Info.Rank)
+			{
+				case SkillRank.RF:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					break;
+
+				case SkillRank.RE:
+				case SkillRank.RD:
+				case SkillRank.RC:
+				case SkillRank.RB:
+				case SkillRank.RA:
+				case SkillRank.R9:
+				case SkillRank.R8:
+				case SkillRank.R7:
+				case SkillRank.R6:
+				case SkillRank.R5:
+				case SkillRank.R4:
+				case SkillRank.R3:
+				case SkillRank.R2:
+				case SkillRank.R1:
+					attackerSkill.Train(1); // Attack an enemy
+					if (action.Creature.IsDead) attackerSkill.Train(2); // Finishing Blow
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
+			}
+		}
+
+		/// <summary>
+		/// Training, called when a creature attacks another creature(s)
+		/// </summary>
+		/// <param name="aAction"></param>
+		public void OnCreatureAttacks(AttackerAction aAction)
+		{
+			// Guns use Combat Mastery as TargetAction skill, so check for AttackerAction skill
+			if (aAction.SkillId != SkillId.ShootingRush)
+				return;
+
+			// Get skill
+			var attackerSkill = aAction.Creature.Skills.Get(SkillId.ShootingRush);
+			if (attackerSkill == null) return; // Should be impossible.
+
+			// Get targets
+			var targets = aAction.Pack.GetTargets();
+
+			// Learning by attacking
+			switch (attackerSkill.Info.Rank)
+			{
+				case SkillRank.RF:
+					break;
+
+				case SkillRank.RE:
+					break;
+
+				case SkillRank.RD:
+				case SkillRank.RC:
+				case SkillRank.RB:
+					if (targets.Length >= 3) attackerSkill.Train(4); // 3 or more enemies
+					break;
+
+				case SkillRank.RA:
+					if (targets.Length >= 4) attackerSkill.Train(4); // 4 or more enemies
+					break;
+
+				case SkillRank.R9:
+				case SkillRank.R8:
+					if (targets.Length >= 4) attackerSkill.Train(4); // 4 or more enemies
+					if (targets.Length >= 5) attackerSkill.Train(5); // 5 or more enemies
+					break;
+
+				case SkillRank.R7:
+				case SkillRank.R6:
+				case SkillRank.R5:
+					if (targets.Length >= 5) attackerSkill.Train(4); // 5 or more enemies
+					if (targets.Length >= 6) attackerSkill.Train(5); // 6 or more enemies
+					break;
+
+				case SkillRank.R4:
+					if (targets.Length >= 5) attackerSkill.Train(4); // 5 or more enemies
+					if (targets.Length >= 7) attackerSkill.Train(5); // 7 or more enemies
+					break;
+
+				case SkillRank.R3:
+				case SkillRank.R2:
+				case SkillRank.R1:
+					if (targets.Length >= 6) attackerSkill.Train(4); // 6 or more enemies
+					if (targets.Length >= 7) attackerSkill.Train(5); // 7 or more enemies
+					break;
+			}
 		}
 
 		private Point RotatePoint(Point point, Point pivot, double radians)

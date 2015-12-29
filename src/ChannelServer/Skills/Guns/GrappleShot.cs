@@ -30,7 +30,7 @@ namespace Aura.Channel.Skills.Guns
 	/// Var4: Max Range
 	/// Var5: Min Range
 	[Skill(SkillId.GrappleShot)]
-	public class GrappleShot : ISkillHandler, IPreparable, IReadyable, IUseable, ICancelable
+	public class GrappleShot : ISkillHandler, IPreparable, IReadyable, IUseable, ICancelable, IInitiableSkillHandler
 	{
 		/// <summary>
 		/// Bullet Count Tag for Gun
@@ -56,6 +56,14 @@ namespace Aura.Channel.Skills.Guns
 		/// Target's stability reduction on hit
 		/// </summary>
 		private const int StabilityReduction = 10;
+
+		/// <summary>
+		/// Subscribes handlers to events required for training.
+		/// </summary>
+		public void Init()
+		{
+			ChannelServer.Instance.Events.CreatureAttackedByPlayer += this.OnCreatureAttackedByPlayer;
+		}
 
 		/// <summary>
 		/// Prepares the skill
@@ -159,11 +167,11 @@ namespace Aura.Channel.Skills.Guns
 			var newAttackerPos = attackerPos.GetRelative(targetPos, distanceFrom);
 
 			// Effects to attacker
-			Send.Effect(attacker, 334, (byte)1, targetEntityId, 434, 429);
-			Send.EffectDelayed(attacker, 434, 334, (byte)2, 929, (float)716.1226, (float)newAttackerPos.X, (float)newAttackerPos.Y);
-			Send.EffectDelayed(attacker, 863, 334, (byte)3, targetEntityId, (byte)1);
-			Send.EffectDelayed(attacker, 1363, 334, (byte)4);
-			Send.Effect(attacker, 329, (byte)1, (byte)0);
+			Send.Effect(attacker, Effect.GrappleShot, (byte)1, targetEntityId, 434, 429); // Grapple Graphic Effect
+			Send.EffectDelayed(attacker, 434, Effect.GrappleShot, (byte)2, 929, (float)716.1226, (float)newAttackerPos.X, (float)newAttackerPos.Y); // Grapple shooting motion
+			Send.EffectDelayed(attacker, 863, Effect.GrappleShot, (byte)3, targetEntityId, (byte)1); // "Roll and Shoot" motion after grapple effect
+			Send.EffectDelayed(attacker, 1363, Effect.GrappleShot, (byte)4); // ?
+			Send.Effect(attacker, 329, (byte)1, (byte)0); // ?
 
 			// Use
 			Send.SkillUse(attacker, skill.Info.Id, targetEntityId, 0, 1);
@@ -181,8 +189,8 @@ namespace Aura.Channel.Skills.Guns
 			Send.ForceRunTo(attacker, newAttackerPos);
 
 			// Effects to attacker
-			Send.Effect(attacker, 16, (short)skill.Info.Id, targetEntityId, 0);
-			Send.Effect(attacker, 329, (byte)0);
+			Send.Effect(attacker, 16, (short)skill.Info.Id, targetEntityId, 0); // ?
+			Send.Effect(attacker, 329, (byte)0); // ?
 
 			// Remove Conditions
 			attacker.Conditions.Deactivate(ConditionsD.Steadfast);
@@ -197,11 +205,16 @@ namespace Aura.Channel.Skills.Guns
 
 			var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
 			tAction.Set(TargetOptions.Result);
+			tAction.AttackerSkillId = skill.Info.Id;
 
 			cap.Add(aAction, tAction);
 
 			// Damage
 			var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f));
+
+			// Master Title
+			if (attacker.Titles.SelectedTitle == 10915)
+				damage += (damage * (15 / 100f)); // +15% Damage
 
 			// Critical Hit
 			var dgm = attacker.Skills.Get(SkillId.DualGunMastery);
@@ -278,6 +291,9 @@ namespace Aura.Channel.Skills.Guns
 				Send.ItemUpdate(attacker, attacker.RightHand);
 			}
 
+			// Train
+			skill.Train(1); // Use the skill
+
 			this.Complete(attacker, skill, packet);
 		}
 
@@ -290,7 +306,7 @@ namespace Aura.Channel.Skills.Guns
 		public void Complete(Creature creature, Skill skill, Packet packet)
 		{
 			Send.SkillComplete(creature, skill.Info.Id);
-
+			creature.Skills.ActiveSkill = null;
 			creature.Unlock(Locks.Walk | Locks.Run);
 
 			/*
@@ -307,6 +323,49 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="skill"></param>
 		public void Cancel(Creature creature, Skill skill)
 		{
+		}
+
+		/// <summary>
+		/// Training, called when someone attacks something.
+		/// </summary>
+		/// <param name="action"></param>
+		public void OnCreatureAttackedByPlayer(TargetAction action)
+		{
+			// Note: Using the skill counts as training, so there is a training method in the Use section as well.
+
+			// Guns use Combat Mastery as TargetAction skill, so check for AttackerAction skill
+			if (action.AttackerSkillId != SkillId.GrappleShot)
+				return;
+
+			// Get skill
+			var attackerSkill = action.Attacker.Skills.Get(SkillId.GrappleShot);
+			if (attackerSkill == null) return; // Should be impossible.
+
+			// Learning by attacking
+			switch (attackerSkill.Info.Rank)
+			{
+				case SkillRank.RF:
+				case SkillRank.RE:
+				case SkillRank.RD:
+				case SkillRank.RC:
+					attackerSkill.Train(2); // Attack an enemy
+					break;
+
+				case SkillRank.RB:
+				case SkillRank.RA:
+				case SkillRank.R9:
+				case SkillRank.R8:
+				case SkillRank.R7:
+				case SkillRank.R6:
+				case SkillRank.R5:
+				case SkillRank.R4:
+				case SkillRank.R3:
+				case SkillRank.R2:
+				case SkillRank.R1:
+					attackerSkill.Train(2); // Attack an enemy
+					if (action.Has(TargetOptions.Critical)) attackerSkill.Train(3); // Critical Hit
+					break;
+			}
 		}
 	}
 }

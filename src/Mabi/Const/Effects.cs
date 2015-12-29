@@ -197,6 +197,48 @@ namespace Aura.Mabi.Const
 		/// byte:1|0 (on/off)
 		/// </summary>
 		public static readonly int OutfitAction = 366;
+
+		/// <summary>
+		/// Used for ShootingRush and BulletStorm.
+		/// Creates a trail that goes to specified entities with defined delay.
+		/// </summary>
+		public static readonly int BulletTrail = 339;
+
+		/// <summary>
+		/// Effect for BulletSlide
+		/// </summary>
+		/// <remarks>
+		/// Currently only known that it uses the bullet slide motion.
+		/// </remarks>
+		public static readonly int BulletSlide = 333;
+
+		/// <summary>
+		/// Effect for GrappleShot, covers a wide range of uses.
+		/// </summary>
+		/// <remarks>
+		/// Can be used for the Grapple Lock On visual effect
+		/// Can be used for the Grapple Shooting motion
+		/// Can be used for the Grapple Rolling/Sliding/End-Shooting motion
+		/// Currently there is one unknown use.
+		/// </remarks>
+		public static readonly int GrappleShot = 334;
+
+		// 335 may be the correct motion for bullet storm.
+
+		/// <summary>
+		/// Flash Launcher effect.
+		/// </summary>
+		/// <remarks>
+		/// Can be used for the "burst" effect of Flash Launcher.
+		/// Other uses are there, but currently unknown.
+		/// </remarks>
+		public static readonly int FlashLauncher = 338;
+
+		/// <summary>
+		/// Used for the bullet slide bullet trail.
+		/// Takes the same targetEntityId 4 times with a specific time frame for each bullet.
+		/// </summary>
+		public static readonly int BulletSlideTrail = 339;
 	}
 
 	public enum SpawnEffect : byte

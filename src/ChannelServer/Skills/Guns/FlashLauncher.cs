@@ -138,7 +138,7 @@ namespace Aura.Channel.Skills.Guns
 			attacker.TurnTo(targetPos);
 
 			// Effects
-			Send.Effect(attacker, 329, (byte)1, (byte)1, 1400);
+			Send.Effect(attacker, 329, (byte)1, (byte)1, 1400); // ?
 
 			// Steadfast Condition
 			var extra = new MabiDictionary();
@@ -220,9 +220,9 @@ namespace Aura.Channel.Skills.Guns
 			var attackerSlidePos = attacker.GetPosition().GetRelative(targetPos, SlideDistance);
 
 			// Effects
-			Send.EffectDelayed(target, 400, 338, (byte)0, (float)targetPos.X, (float)targetPos.Y, 400, 1000);
-			Send.EffectDelayed(attacker, 1400, 338, (byte)1, (float)attackerSlidePos.X, (float)attackerSlidePos.Y, 800);
-			Send.EffectDelayed(target, 3500, 338, (byte)2);
+			Send.EffectDelayed(target, 400, Effect.FlashLauncher, (byte)0, (float)targetPos.X, (float)targetPos.Y, 400, 1000); // ?
+			Send.EffectDelayed(attacker, 1400, Effect.FlashLauncher, (byte)1, (float)attackerSlidePos.X, (float)attackerSlidePos.Y, 800); // Flash Launcher burst effect
+			Send.EffectDelayed(target, 3500, Effect.FlashLauncher, (byte)2); // ?
 
 			// Item Update excluding Way Of The Gun
 			if (!attacker.Conditions.Has(ConditionsD.WayOfTheGun))

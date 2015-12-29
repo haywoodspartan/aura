@@ -160,9 +160,9 @@ namespace Aura.Channel.Skills.Guns
 
 			// Effects
 			Send.MotionCancel2(attacker, 0);
-			Send.Effect(attacker, 333, (byte)1, 2300, (float)newAttackerPos.X, (float)newAttackerPos.Y);
-			Send.EffectDelayed(attacker, 233, 333, (byte)2, (float)500, 1167, (float)newAttackerPos.X, (float)newAttackerPos.Y);
-			Send.EffectDelayed(attacker, 334, 339, (short)skill.Info.Id, 833, (short)4, 0, targetEntityId, 134, targetEntityId, 268, targetEntityId, 402, targetEntityId);
+			Send.Effect(attacker, Effect.BulletSlide, (byte)1, 2300, (float)newAttackerPos.X, (float)newAttackerPos.Y); // Bullet Slide motion
+			Send.EffectDelayed(attacker, 233, 333, (byte)2, (float)500, 1167, (float)newAttackerPos.X, (float)newAttackerPos.Y); // ?
+			Send.EffectDelayed(attacker, 334, Effect.BulletSlideTrail, (short)skill.Info.Id, 833, (short)4, 0, targetEntityId, 134, targetEntityId, 268, targetEntityId, 402, targetEntityId); // BulletSlide bullet trail
 
 			// Prepare Combat Actions
 			var cap = new CombatActionPack(attacker, skill.Info.Id);
@@ -183,6 +183,10 @@ namespace Aura.Channel.Skills.Guns
 
 			// Damage
 			var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f)) * tAction.MultiHitDamageCount;
+
+			// Master Title
+			if (attacker.Titles.SelectedTitle == 10916)
+				damage += (damage * (15 / 100f)); // +15% damage
 
 			// Critical Hit
 			var dgm = attacker.Skills.Get(SkillId.DualGunMastery);

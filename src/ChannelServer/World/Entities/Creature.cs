@@ -348,12 +348,6 @@ namespace Aura.Channel.World.Entities
 		public bool WasKnockedBack { get; set; }
 
 		/// <summary>
-		/// Returns weapon's knock count or the race's if not weapon
-		/// is equipped.
-		/// </summary>
-		public int KnockCount { get { return (this.RightHand != null ? this.RightHand.Info.KnockCount + 1 : this.RaceData.KnockCount + 1); } }
-
-		/// <summary>
 		/// Returns average knock count of both equipped weapons, or race's
 		/// if none are equipped.
 		/// </summary>
@@ -842,17 +836,17 @@ namespace Aura.Channel.World.Entities
 			get { return _life; }
 			set
 			{
+				var before = _life;
+
 				_life = Math2.Clamp(-this.LifeMax, this.LifeInjured, value);
 
-				//if (_life < 0 && !this.Has(CreatureConditionA.Deadly))
-				//{
-				//    this.Activate(CreatureConditionA.Deadly);
-				//}
-				//else if (_life >= 0 && this.Has(CreatureConditionA.Deadly))
-				//{
-				//    this.Deactivate(CreatureConditionA.Deadly);
-				//}
-
+				if (this.Region != Region.Limbo)
+				{
+					if ((_life < 0 && before >= 0) && !this.Conditions.Has(ConditionsA.Deadly))
+						this.Conditions.Activate(ConditionsA.Deadly);
+					else if ((_life >= 0 && before < 0) && this.Conditions.Has(ConditionsA.Deadly))
+						this.Conditions.Deactivate(ConditionsA.Deadly);
+				}
 			}
 		}
 		public float Injuries
@@ -985,6 +979,11 @@ namespace Aura.Channel.World.Entities
 		/// <summary>
 		/// Loads race and handles some basic stuff, like adding regens.
 		/// </summary>
+		/// <remarks>
+		/// Has to be called before anything is actually done with the creature,
+		/// as it initializes the race data, the inventory, and other vital
+		/// parts.
+		/// </remarks>
 		public virtual void LoadDefault()
 		{
 			if (this.RaceId == 0)
@@ -1003,6 +1002,7 @@ namespace Aura.Channel.World.Entities
 
 			// Add inventory
 			this.Inventory.AddMainInventory();
+			this.Inventory.StartLiveUpdate();
 
 			// Add regens
 			// The wiki says it's 0.125 life, but the packets have 0.12.

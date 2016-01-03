@@ -1,38 +1,28 @@
 //--- Aura Script -----------------------------------------------------------
-// Chicken AI
+// Cow AI
 //--- Description -----------------------------------------------------------
-// AI for chickens.
+// AI for cows.
 //---------------------------------------------------------------------------
 
-[AiScript("chicken")]
-public class ChickenAi : AiScript
+[AiScript("cow")]
+public class CowAi : AiScript
 {
-	public ChickenAi()
+	public CowAi()
 	{
-		SetAggroRadius(400);
-		
-		Hates("/fox/");
-		Loves("/hen/");
+		SetAggroRadius(2000);
+
+		//HatesAttacking("/cow/");
 	}
-	
+
 	protected override IEnumerable Idle()
 	{
 		Do(Wander());
-		Do(Wait(8000));
-		Do(StartSkill(SkillId.Rest));
-		Do(Wait(2000, 30000));
-		Do(StopSkill(SkillId.Rest));
+		Do(Wait(7000, 20000));
 	}
-	
+
 	protected override IEnumerable Aggro()
 	{
 		Do(Attack(3));
 		Do(Wait(3000));
-	}
-	
-	protected override IEnumerable Love()
-	{
-		Do(Follow(300, true));
-		Do(Wait(5000, 10000));
 	}
 }

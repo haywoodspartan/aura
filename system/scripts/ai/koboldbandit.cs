@@ -1,7 +1,7 @@
 //--- Aura Script -----------------------------------------------------------
-//  Kobold Bandit AI
+// Kobold Bandit AI
 //--- Description -----------------------------------------------------------
-//  AI for kobold bandits.
+// AI for kobold bandits.
 //--- History ---------------------------------------------------------------
 // 1.0 Added general AI behaviors
 // Missing: weaponswap, aggro over time, visual angle...
@@ -91,9 +91,10 @@ public class KoboldBanditAi : AiScript
 	public KoboldBanditAi()
 	{
 		SetAggroRadius(850); // angle 120 audiorange 200
-		Doubts("/pc/", "/pet/");
-		//SetAggroDelay(7000);
 		SetAggroLimit(AggroLimit.Two);
+
+		Doubts("/pc/", "/pet/");
+		HatesNearby(7000);
 
 		On(AiState.Aggro, AiEvent.DefenseHit, OnDefenseHit);
 		On(AiState.Aggro, AiEvent.Hit, OnHit);

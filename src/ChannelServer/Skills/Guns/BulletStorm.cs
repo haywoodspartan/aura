@@ -141,6 +141,9 @@ namespace Aura.Channel.Skills.Guns
 
 			var attackerPos = attacker.GetPosition();
 
+			Send.SkillUse(attacker, skill.Info.Id, targetAreaId, 0, 1);
+			skill.Stacks = 0;
+
 			// Distance & Radius
 			var distance = skill.RankData.Var7;
 			var radius = skill.RankData.Var6;
@@ -149,8 +152,6 @@ namespace Aura.Channel.Skills.Guns
 			var newTargetPosition = attackerPos.GetRelative(targetAreaPos, (int)(distance - attackerToTargetPointDist)); // Get position for use of true rectangle distance
 
 			attacker.StopMove(); // Unnecessary at the moment, but who knows.
-
-			// Note: Add BulletDist later.
 
 			// Center Points Calculation
 			var attackerPoint = new Point(attackerPos.X, attackerPos.Y);
@@ -206,8 +207,11 @@ namespace Aura.Channel.Skills.Guns
 			var bulletDist = -380;
 			var totalDelay = 0;
 
-			Send.Effect(attacker, 335, (byte)1, (byte)1, (short)131, (short)targets.Count, 1140, (byte)2, (short)433, (short)1133); // Following the pattern of effect ids, may be bullet storm motion... But it doesn't work?
-			Send.UseMotion(attacker, 131, 3, true, false);
+			// Following the pattern of effect ids, may be bullet storm motion... But it doesn't work?
+			// Also changed parameter count between two logs of bullet storm. Is this because of the target count?
+			Send.Effect(attacker, 335, (byte)1, (byte)1, (short)131, (short)3, 1140, (byte)2, (short)433, (short)1133); // ?
+
+			Send.UseMotion(attacker, 131, 3, true, false); // Bullet Storm shooting motion
 
 			// Prepare target actions
 			foreach (var target in targets)
@@ -310,8 +314,6 @@ namespace Aura.Channel.Skills.Guns
 			aAction.Creature.Stun = aAction.Stun;
 			cap.Handle();
 
-			Send.SkillUse(attacker, skill.Info.Id, targetAreaId, 0, 1);
-			skill.Stacks = 0;
 			attacker.Region.Broadcast(shootEffect, attacker);
 
 			// Item Update excluding Way Of The Gun
@@ -325,7 +327,7 @@ namespace Aura.Channel.Skills.Guns
 			System.Threading.Timer t2 = null;
 			t2 = new System.Threading.Timer(_ =>
 			{
-				Send.UseMotion(attacker, 131, 4, false, false);
+				Send.UseMotion(attacker, 131, 4, false, false); // Bullet Storm ending motion
 				GC.KeepAlive(t2);
 			}, null, totalDelay, System.Threading.Timeout.Infinite);
 

@@ -58,6 +58,15 @@ namespace Aura.Channel.Skills.Guns
 		private const int StabilityReduction = 10;
 
 		/// <summary>
+		/// Distance to land from the target.
+		/// </summary>
+		/// <remarks>
+		/// Grapple shot doesn't send the player directly to the target's potision,
+		/// but instead to a position slightly away from it.
+		/// </remarks>
+		private const int LandingDistance = 100;
+
+		/// <summary>
 		/// Subscribes handlers to events required for training.
 		/// </summary>
 		public void Init()
@@ -163,8 +172,7 @@ namespace Aura.Channel.Skills.Guns
 			attacker.Lock(Locks.Walk | Locks.Run);
 			var attackerPos = attacker.GetPosition();
 			var targetPos = target.GetPosition();
-			var distanceFrom = attackerPos.GetDistance(targetPos) - 50;
-			var newAttackerPos = attackerPos.GetRelative(targetPos, distanceFrom);
+			var newAttackerPos = attackerPos.GetRelative(targetPos, (LandingDistance * -1)); // Only moves to the target until a certain distance
 
 			// Effects to attacker
 			Send.Effect(attacker, Effect.GrappleShot, (byte)1, targetEntityId, 434, 429); // Grapple Graphic Effect

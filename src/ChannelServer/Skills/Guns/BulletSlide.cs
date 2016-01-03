@@ -161,7 +161,7 @@ namespace Aura.Channel.Skills.Guns
 			// Effects
 			Send.MotionCancel2(attacker, 0);
 			Send.Effect(attacker, Effect.BulletSlide, (byte)1, 2300, (float)newAttackerPos.X, (float)newAttackerPos.Y); // Bullet Slide motion
-			Send.EffectDelayed(attacker, 233, 333, (byte)2, (float)500, 1167, (float)newAttackerPos.X, (float)newAttackerPos.Y); // ?
+			Send.EffectDelayed(attacker, 233, Effect.BulletSlide, (byte)2, (float)500, 1167, (float)newAttackerPos.X, (float)newAttackerPos.Y); // ?
 			Send.EffectDelayed(attacker, 334, Effect.BulletSlideTrail, (short)skill.Info.Id, 833, (short)4, 0, targetEntityId, 134, targetEntityId, 268, targetEntityId, 402, targetEntityId); // BulletSlide bullet trail
 
 			// Prepare Combat Actions

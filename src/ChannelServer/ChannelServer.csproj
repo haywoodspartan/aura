@@ -169,6 +169,9 @@
     <Compile Include="Skills\Combat\Defense.cs" />
     <Compile Include="Skills\Combat\FinalHit.cs" />
     <Compile Include="Skills\Combat\GlasGhaibhleannSkill.cs" />
+    <Compile Include="Skills\Combat\ManaDeflector.cs" />
+    <Compile Include="Skills\Combat\NaturalShield.cs" />
+    <Compile Include="Skills\Combat\HeavyStander.cs" />
     <Compile Include="Skills\Combat\MagnumShot.cs" />
     <Compile Include="Skills\Combat\RangedAttack.cs" />
     <Compile Include="Skills\Combat\Smash.cs" />

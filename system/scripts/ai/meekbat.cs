@@ -9,8 +9,10 @@ public class MeekBatAi : AiScript
 {
 	public MeekBatAi()
 	{
+		SetVisualField(200, 120);
+		SetAggroRadius(1000);
+
 		Doubts("/pc/", "/pet/");
-		SetAggroRadius(200); // 120 angle 1000 audio
 
 		On(AiState.Aggro, AiEvent.DefenseHit, OnDefenseHit);
 		On(AiState.Aggro, AiEvent.Hit, OnHit);
@@ -37,16 +39,16 @@ public class MeekBatAi : AiScript
 
 	private IEnumerable OnHit()
 	{
-		var rndOH = Random();
-		if (rndOH < 15)
+		SwitchRandom();
+		if (Case(15))
 		{
 			Do(KeepDistance(1000, false, 2000));
 		}
-		else if (rndOH < 30)
+		else if (Case(15))
 		{
 			Do(Timeout(2000, Wander(100, 500, false)));
 		}
-		else
+		else if (Case(70))
 		{
 			Do(Attack(3, 4000));
 		}

@@ -43,6 +43,7 @@ namespace Aura.Channel.Scripting.Scripts
 		protected bool _active;
 		protected DateTime _minRunTime;
 		private bool _inside = false;
+		private int _stuckTestCount = 0;
 
 		protected Random _rnd;
 		protected AiState _state;
@@ -56,12 +57,17 @@ namespace Aura.Channel.Scripting.Scripts
 
 		// Settings
 		protected int _aggroRadius, _aggroMaxRadius;
+		protected int _visualRadius;
+		protected double _visualRadian;
 		protected TimeSpan _alertDelay, _aggroDelay, _hateBattleStanceDelay, _hateOverTimeDelay;
 		protected DateTime _awareTime, _alertTime;
 		protected AggroLimit _aggroLimit;
 		protected Dictionary<string, string> _hateTags, _loveTags, _doubtTags;
 		protected bool _hatesBattleStance;
 		protected int _maxDistanceFromSpawn;
+
+		// Misc
+		private int _switchRandomN, _switchRandomM;
 
 		/// <summary>
 		/// Creature controlled by AI.
@@ -102,6 +108,8 @@ namespace Aura.Channel.Scripting.Scripts
 			_state = AiState.Idle;
 			_aggroRadius = 500;
 			_aggroMaxRadius = 3000;
+			_visualRadius = 900;
+			_visualRadian = 90;
 			_alertDelay = TimeSpan.FromMilliseconds(6000);
 			_aggroDelay = TimeSpan.FromMilliseconds(500);
 			_hateOverTimeDelay = TimeSpan.FromDays(365);
@@ -189,10 +197,16 @@ namespace Aura.Channel.Scripting.Scripts
 			if (this.Creature == null || this.Creature.Region == Region.Limbo)
 				return;
 
+			// Skip tick if the previous one is still on.
 			if (_inside)
-				Log.Debug("AI crash in '{0}'.", this.GetType().Name);
+			{
+				if (++_stuckTestCount == 10)
+					Log.Warning("AiScript.Heartbeat: {0} stuck?", this.GetType().Name);
+				return;
+			}
 
 			_inside = true;
+			_stuckTestCount = 0;
 			try
 			{
 				var now = this.UpdateTimestamp();
@@ -288,7 +302,12 @@ namespace Aura.Channel.Scripting.Scripts
 		/// </summary>
 		private void SelectState()
 		{
-			var potentialTargets = this.Creature.Region.GetVisibleCreaturesInRange(this.Creature, _aggroRadius).Where(c => !c.Warping);
+			var pos = this.Creature.GetPosition();
+
+			// Get perceivable targets
+			var radius = Math.Max(_aggroRadius, _visualRadius);
+			var potentialTargets = this.Creature.Region.GetVisibleCreaturesInRange(this.Creature, radius).Where(c => !c.Warping);
+			potentialTargets = potentialTargets.Where(a => this.CanPerceive(pos, this.Creature.Direction, a.GetPosition()));
 
 			// Stay in idle if there's no visible creature in aggro range
 			if (!potentialTargets.Any() && this.Creature.Target == null)
@@ -361,7 +380,7 @@ namespace Aura.Channel.Scripting.Scripts
 			if (_state == AiState.Aware && DateTime.Now >= _awareTime + _alertDelay)
 			{
 				// Check if target is still in immediate range
-				if (this.Creature.GetPosition().InRange(this.Creature.Target.GetPosition(), _aggroRadius))
+				if (this.CanPerceive(pos, this.Creature.Direction, this.Creature.Target.GetPosition()))
 				{
 					this.Clear();
 
@@ -401,6 +420,41 @@ namespace Aura.Channel.Scripting.Scripts
 				_state = AiState.Aggro;
 				Send.SetCombatTarget(this.Creature, this.Creature.Target.EntityId, TargetMode.Aggro);
 			}
+		}
+
+		/// <summary>
+		/// Returns true if AI can hear or see at target pos from pos.
+		/// </summary>
+		/// <param name="pos">Position AI's creature is at.</param>
+		/// <param name="direction">AI creature's current direction.</param>
+		/// <param name="targetPos">Position of the potential target.</param>
+		/// <returns></returns>
+		protected virtual bool CanPerceive(Position pos, byte direction, Position targetPos)
+		{
+			return (this.CanHear(pos, targetPos) || this.CanSee(pos, direction, targetPos));
+		}
+
+		/// <summary>
+		/// Returns true if target position is within hearing range.
+		/// </summary>
+		/// <param name="pos">Position from which AI creature listens.</param>
+		/// <param name="targetPos">Position of the potential target.</param>
+		/// <returns></returns>
+		protected virtual bool CanHear(Position pos, Position targetPos)
+		{
+			return pos.InRange(targetPos, _aggroRadius);
+		}
+
+		/// <summary>
+		/// Returns true if target position is within visual field.
+		/// </summary>
+		/// <param name="pos">Position from which AI creature listens.</param>
+		/// <param name="direction">AI creature's current direction.</param>
+		/// <param name="targetPos">Position of the potential target.</param>
+		/// <returns></returns>
+		protected virtual bool CanSee(Position pos, byte direction, Position targetPos)
+		{
+			return targetPos.InCone(pos, MabiMath.ByteToRadian(direction), _visualRadius, _visualRadian);
 		}
 
 		/// <summary>
@@ -473,6 +527,19 @@ namespace Aura.Channel.Scripting.Scripts
 		protected void SetAggroRadius(int radius)
 		{
 			_aggroRadius = radius;
+		}
+
+		/// <summary>
+		/// Sets visual field used for aggroing.
+		/// </summary>
+		/// <param name="radius"></param>
+		/// <param name="angle"></param>
+		protected void SetVisualField(int radius, double angle)
+		{
+			var a = Math2.Clamp(0, 160, (int)angle);
+
+			_visualRadius = radius;
+			_visualRadian = MabiMath.DegreeToRadian(a);
 		}
 
 		/// <summary>
@@ -641,10 +708,8 @@ namespace Aura.Channel.Scripting.Scripts
 		/// <param name="values"></param>
 		protected T Rnd<T>(params T[] values)
 		{
-			if (values == null || values.Length == 0)
-				throw new ArgumentException("values may not be null or empty.");
-
-			return values[this.Random(values.Length)];
+			lock (_rnd)
+				return _rnd.Rnd(values);
 		}
 
 		/// <summary>
@@ -720,6 +785,10 @@ namespace Aura.Channel.Scripting.Scripts
 			if (this.Creature.RaceData.SharpMindImmune)
 				return;
 
+			// Check if SharpMind is enabled
+			if (!AuraData.FeaturesDb.IsEnabled("SharpMind"))
+				return;
+
 			var passive = AuraData.FeaturesDb.IsEnabled("PassiveSharpMind");
 
 			// Send to players in range, one after the other, so we have control
@@ -769,6 +838,66 @@ namespace Aura.Channel.Scripting.Scripts
 		protected bool HasSkill(SkillId skillId)
 		{
 			return this.Creature.Skills.Has(skillId);
+		}
+
+		/// <summary>
+		/// Generates and saves a random number between 0 and 99,
+		/// for Case to use.
+		/// </summary>
+		/// <remarks>
+		/// SwitchRandom only keeps track of one random number at a time.
+		/// You can nest SwitchRandom-if-constructs, but randomly calling
+		/// SwitchRandom in between might give unexpected results.
+		/// </remarks>
+		/// <example>
+		/// SwitchRandom();
+		/// if (Case(40))
+		/// {
+		///     Do(Wander(250, 500));
+		/// }
+		/// else if (Case(40))
+		/// {
+		///     Do(Wander(250, 500, false));
+		/// }
+		/// else if (Case(20))
+		/// {
+		///     Do(Wait(4000, 6000));
+		/// }
+		/// 
+		/// SwitchRandom();
+		/// if (Case(60))
+		/// {
+		///		SwitchRandom();
+		///		if (Case(20))
+		///		{
+		///		    Do(Wander(250, 500));
+		///		}
+		///		else if (Case(80))
+		///		{
+		///		    Do(Wait(4000, 6000));
+		///		}
+		/// }
+		/// else if (Case(40))
+		/// {
+		///     Do(Wander(250, 500, false));
+		/// }
+		/// </example>
+		protected void SwitchRandom()
+		{
+			_switchRandomN = this.Random(100);
+			_switchRandomM = 0;
+		}
+
+		/// <summary>
+		/// Returns true if value matches the last random percentage
+		/// generated by SwitchRandom().
+		/// </summary>
+		/// <param name="value"></param>
+		/// <returns></returns>
+		protected bool Case(int value)
+		{
+			_switchRandomM += value;
+			return (_switchRandomN < _switchRandomM);
 		}
 
 		// Flow control
@@ -1022,6 +1151,10 @@ namespace Aura.Channel.Scripting.Scripts
 
 			for (int i = 0; _timestamp < until || i == 0; ++i)
 			{
+				// Stop if target vanished somehow
+				if (this.Creature.Target == null)
+					yield break;
+
 				var targetPos = this.Creature.Target.GetPosition();
 				var pos = this.Creature.GetPosition();
 
@@ -1049,6 +1182,10 @@ namespace Aura.Channel.Scripting.Scripts
 
 			while (_timestamp < until)
 			{
+				// Stop if target vanished somehow
+				if (this.Creature.Target == null)
+					yield break;
+
 				var pos = this.Creature.GetPosition();
 				var targetPos = this.Creature.Target.GetPosition();
 
@@ -1137,6 +1274,10 @@ namespace Aura.Channel.Scripting.Scripts
 				// Stop timeout was reached
 				if (_timestamp >= until)
 					break;
+
+				// Stop if target vanished somehow
+				if (this.Creature.Target == null)
+					yield break;
 
 				// Attack
 				var result = skillHandler.Use(this.Creature, skill, this.Creature.Target.EntityId);
@@ -1232,11 +1373,11 @@ namespace Aura.Channel.Scripting.Scripts
 			// Wait till aim is 99% or timeout is reached
 			var until = _timestamp + Math.Max(0, timeout);
 			var aim = 0.0;
-			while (_timestamp < until && (aim = this.Creature.AimMeter.GetAimChance(target)) < 99)
+			while (_timestamp < until && (aim = this.Creature.AimMeter.GetAimChance(target)) < 90)
 				yield return true;
 
-			// Cancel if 99 aim weren't reached
-			if (aim < 99)
+			// Cancel if 90 aim weren't reached
+			if (aim < 90)
 			{
 				this.SharpMind(activeSkill.Info.Id, SharpMindStatus.Cancelling);
 				this.Creature.Skills.CancelActiveSkill();
@@ -1252,11 +1393,113 @@ namespace Aura.Channel.Scripting.Scripts
 		}
 
 		/// <summary>
+		/// Attacks with the given skill, charging it first, if it doesn't
+		/// have the given amount of stacks yet. Attacks until all stacks
+		/// have been used, or timeout is reached.
+		/// </summary>
+		/// <param name="skillId"></param>
+		/// <param name="stacks"></param>
+		/// <param name="timeout"></param>
+		/// <returns></returns>
+		protected IEnumerable StackAttack(SkillId skillId, int stacks = 1, int timeout = 30000)
+		{
+			var target = this.Creature.Target;
+			var until = _timestamp + Math.Max(0, timeout);
+
+			// Get handler
+			var prepareHandler = ChannelServer.Instance.SkillManager.GetHandler<IPreparable>(skillId);
+			var readyHandler = prepareHandler as IReadyable;
+			var combatHandler = prepareHandler as ICombatSkill;
+
+			if (prepareHandler == null || readyHandler == null || combatHandler == null)
+			{
+				Log.Warning("AI.StackAttack: {0}'s handler doesn't exist, or doesn't implement the necessary interfaces.", skillId);
+				yield break;
+			}
+
+			// Cancel active skill if it's not the one we want
+			var skill = this.Creature.Skills.ActiveSkill;
+			if (skill != null && skill.Info.Id != skillId)
+			{
+				foreach (var action in this.CancelSkill())
+					yield return action;
+			}
+
+			// Get skill if we don't have one yet
+			if (skill == null)
+			{
+				// Get skill
+				skill = this.Creature.Skills.Get(skillId);
+				if (skill == null)
+				{
+					Log.Warning("AI.StackAttack: Creature '{0}' doesn't have {1}.", this.Creature.RaceId, skillId);
+					yield break;
+				}
+			}
+
+			// Stack up
+			stacks = Math2.Clamp(1, skill.RankData.StackMax, stacks);
+			while (skill.Stacks < stacks)
+			{
+				// Start loading
+				this.SharpMind(skill.Info.Id, SharpMindStatus.Loading);
+
+				// Prepare skill
+				prepareHandler.Prepare(this.Creature, skill, null);
+
+				this.Creature.Skills.ActiveSkill = skill;
+				skill.State = SkillState.Prepared;
+
+				// Wait for loading to be done
+				foreach (var action in this.Wait(skill.RankData.LoadTime))
+					yield return action;
+
+				// Call ready
+				readyHandler.Ready(this.Creature, skill, null);
+				skill.State = SkillState.Ready;
+
+				// Done loading
+				this.SharpMind(skill.Info.Id, SharpMindStatus.Loaded);
+			}
+
+			// Small delay
+			foreach (var action in this.Wait(1000, 2000))
+				yield return action;
+
+			// Attack
+			while (skill.Stacks > 0)
+			{
+				if (_timestamp >= until)
+					break;
+
+				combatHandler.Use(this.Creature, skill, target.EntityId);
+				yield return true;
+			}
+
+			// Cancel skill if there are left over stacks
+			if (skill.Stacks != 0)
+			{
+				foreach (var action in this.CancelSkill())
+					yield return action;
+			}
+		}
+
+		/// <summary>
 		/// Makes creature prepare given skill.
 		/// </summary>
 		/// <param name="skillId"></param>
 		/// <returns></returns>
 		protected IEnumerable PrepareSkill(SkillId skillId)
+		{
+			return this.PrepareSkill(skillId, 1);
+		}
+
+		/// <summary>
+		/// Makes creature prepare given skill.
+		/// </summary>
+		/// <param name="skillId"></param>
+		/// <returns></returns>
+		protected IEnumerable PrepareSkill(SkillId skillId, int stacks)
 		{
 			// Get skill
 			var skill = this.Creature.Skills.Get(skillId);
@@ -1271,70 +1514,79 @@ namespace Aura.Channel.Scripting.Scripts
 				yield break;
 			}
 
-			skill.State = SkillState.None;
-
 			// Cancel previous skill
-			if (this.Creature.Skills.ActiveSkill != null)
+			var activeSkill = this.Creature.Skills.ActiveSkill;
+			if (activeSkill != null && activeSkill.Info.Id != skillId)
 				this.ExecuteOnce(this.CancelSkill());
 
-			// Explicit handling
-			if (skillId == SkillId.WebSpinning)
+			stacks = Math2.Clamp(1, skill.RankData.StackMax, skill.Stacks + stacks);
+			while (skill.Stacks < stacks)
 			{
-				var skillHandler = ChannelServer.Instance.SkillManager.GetHandler<WebSpinning>(skillId);
-				skillHandler.Prepare(this.Creature, skill, null);
-				this.Creature.Skills.ActiveSkill = skill;
-				skillHandler.Complete(this.Creature, skill, null);
-			}
-			// Try to handle implicitly
-			else
-			{
-				// Get preparable handler
-				var skillHandler = ChannelServer.Instance.SkillManager.GetHandler<IPreparable>(skillId);
-				if (skillHandler == null)
+				// Explicit handling
+				if (skillId == SkillId.WebSpinning)
 				{
-					Log.Unimplemented("AI.PrepareSkill: Missing handler or IPreparable for '{0}'.", skillId);
-					yield break;
-				}
-
-				// Get readyable handler.
-				// TODO: There are skills that don't have ready, but go right to
-				//   use from Prepare. Handle somehow.
-				var readyHandler = skillHandler as IReadyable;
-				if (readyHandler == null)
-				{
-					Log.Unimplemented("AI.PrepareSkill: Missing IReadyable for '{0}'.", skillId);
-					yield break;
-				}
-
-				this.SharpMind(skillId, SharpMindStatus.Loading);
-
-				// Prepare skill
-				try
-				{
-					if (!skillHandler.Prepare(this.Creature, skill, null))
-						yield break;
-
+					var skillHandler = ChannelServer.Instance.SkillManager.GetHandler<WebSpinning>(skillId);
+					skillHandler.Prepare(this.Creature, skill, null);
 					this.Creature.Skills.ActiveSkill = skill;
-					skill.State = SkillState.Prepared;
+					skillHandler.Complete(this.Creature, skill, null);
 				}
-				catch (NullReferenceException)
+				// Try to handle implicitly
+				else
 				{
-					Log.Warning("AI.PrepareSkill: Null ref exception while preparing '{0}', skill might have parameters.", skillId);
+					// Get preparable handler
+					var skillHandler = ChannelServer.Instance.SkillManager.GetHandler<IPreparable>(skillId);
+					if (skillHandler == null)
+					{
+						Log.Unimplemented("AI.PrepareSkill: Missing handler or IPreparable for '{0}'.", skillId);
+						yield break;
+					}
+
+					// Get readyable handler.
+					// TODO: There are skills that don't have ready, but go right to
+					//   use from Prepare. Handle somehow.
+					var readyHandler = skillHandler as IReadyable;
+					if (readyHandler == null)
+					{
+						Log.Unimplemented("AI.PrepareSkill: Missing IReadyable for '{0}'.", skillId);
+						yield break;
+					}
+
+					this.SharpMind(skillId, SharpMindStatus.Loading);
+
+					// Prepare skill
+					try
+					{
+						if (!skillHandler.Prepare(this.Creature, skill, null))
+							yield break;
+
+						this.Creature.Skills.ActiveSkill = skill;
+						skill.State = SkillState.Prepared;
+					}
+					catch (NullReferenceException)
+					{
+						Log.Warning("AI.PrepareSkill: Null ref exception while preparing '{0}', skill might have parameters.", skillId);
+					}
+					catch (NotImplementedException)
+					{
+						Log.Unimplemented("AI.PrepareSkill: Skill prepare method for '{0}'.", skillId);
+					}
+
+					// Wait for loading to be done
+					foreach (var action in this.Wait(skill.RankData.LoadTime))
+						yield return action;
+
+					// Call ready
+					readyHandler.Ready(this.Creature, skill, null);
+					skill.State = SkillState.Ready;
+
+					this.SharpMind(skillId, SharpMindStatus.Loaded);
 				}
-				catch (NotImplementedException)
-				{
-					Log.Unimplemented("AI.PrepareSkill: Skill prepare method for '{0}'.", skillId);
-				}
 
-				// Wait for loading to be done
-				foreach (var action in this.Wait(skill.RankData.LoadTime))
-					yield return action;
-
-				// Call ready
-				readyHandler.Ready(this.Creature, skill, null);
-				skill.State = SkillState.Ready;
-
-				this.SharpMind(skillId, SharpMindStatus.Loaded);
+				// If stacks are still 0 after preparing, we'll have to assume
+				// that the skill didn't set it. We have to break the loop,
+				// otherwise the AI would prepare the skill indefinitely.
+				if (skill.Stacks == 0)
+					break;
 			}
 		}
 
@@ -1394,11 +1646,7 @@ namespace Aura.Channel.Scripting.Scripts
 			var skill = this.Creature.Skills.ActiveSkill;
 			var skillId = this.Creature.Skills.ActiveSkill.Info.Id;
 
-			this.Creature.Skills.ActiveSkill = null;
-			skill.State = SkillState.Completed;
-
-			this.SharpMind(skillId, SharpMindStatus.Cancelling);
-
+			// Get skill handler
 			var skillHandler = ChannelServer.Instance.SkillManager.GetHandler<ICompletable>(skillId);
 			if (skillHandler == null)
 			{
@@ -1406,10 +1654,10 @@ namespace Aura.Channel.Scripting.Scripts
 				yield break;
 			}
 
+			// Run complete
 			try
 			{
 				skillHandler.Complete(this.Creature, skill, null);
-				skill.State = SkillState.Completed;
 			}
 			catch (NullReferenceException)
 			{
@@ -1418,6 +1666,18 @@ namespace Aura.Channel.Scripting.Scripts
 			catch (NotImplementedException)
 			{
 				Log.Unimplemented("AI.CompleteSkill: Skill complete method for '{0}'.", skillId);
+			}
+
+			// Finalize complete or ready again
+			if (skill.Stacks == 0)
+			{
+				this.Creature.Skills.ActiveSkill = null;
+				skill.State = SkillState.Completed;
+				this.SharpMind(skillId, SharpMindStatus.Cancelling);
+			}
+			else if (skill.State != SkillState.Canceled)
+			{
+				skill.State = SkillState.Ready;
 			}
 		}
 
@@ -1671,31 +1931,54 @@ namespace Aura.Channel.Scripting.Scripts
 			{
 				var state = _reactions[_state];
 				var ev = AiEvent.None;
+				var fallback = AiEvent.None;
 
 				// Knock down event
 				if (action.Has(TargetOptions.KnockDown) || action.Has(TargetOptions.Smash))
 				{
-					if (action.Has(TargetOptions.Critical))
-						ev = AiEvent.CriticalKnockDown;
-					else
-						ev = AiEvent.KnockDown;
+					// Windmill doesn't trigger the knock down event
+					if (action.AttackerSkillId != SkillId.Windmill)
+					{
+						if (action.Has(TargetOptions.Critical))
+							ev = AiEvent.CriticalKnockDown;
+						else
+							ev = AiEvent.KnockDown;
+					}
 				}
 				// Defense event
 				else if (action.SkillId == SkillId.Defense)
 				{
 					ev = AiEvent.DefenseHit;
 				}
+				// Magic hit event
+				// Use skill ids for now, until we know more about what
+				// exactly classifies as a magic hit and what doesn't.
+				else if (action.AttackerSkillId >= SkillId.Lightningbolt && action.AttackerSkillId <= SkillId.Inspiration)
+				{
+					ev = AiEvent.MagicHit;
+					if (action.Has(TargetOptions.Critical))
+						fallback = AiEvent.CriticalHit;
+					else
+						fallback = AiEvent.Hit;
+				}
 				// Hit event
 				else
 				{
-					ev = AiEvent.Hit;
+					if (action.Has(TargetOptions.Critical))
+						ev = AiEvent.CriticalHit;
+					else
+						ev = AiEvent.Hit;
 				}
 
 				// Try to find and execute event
+				Dictionary<SkillId, Func<IEnumerable>> evs = null;
 				if (state.ContainsKey(ev))
-				{
-					var evs = state[ev];
+					evs = state[ev];
+				else if (state.ContainsKey(fallback))
+					evs = state[fallback];
 
+				if (evs != null)
+				{
 					// Since events can be defined for specific skills,
 					// but assumingly still trigger the default events if no
 					// skill specific event was defined, we have to check for
@@ -1838,7 +2121,9 @@ namespace Aura.Channel.Scripting.Scripts
 		{
 			None,
 			Hit,
+			CriticalHit,
 			DefenseHit,
+			MagicHit,
 			KnockDown,
 			CriticalKnockDown,
 		}

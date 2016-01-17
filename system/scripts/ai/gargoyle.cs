@@ -9,39 +9,68 @@ public class GargoyleAi : AiScript
 {
 	public GargoyleAi()
 	{
+		SetVisualField(1200, 120);
+		SetAggroRadius(800);
+
 		Hates("/pc/", "/pet/");
 
 		On(AiState.Aggro, AiEvent.Hit, OnHit);
 		On(AiState.Aggro, AiEvent.KnockDown, OnKnockDown);
 		On(AiState.Aggro, AiEvent.DefenseHit, OnDefenseHit);
-		//On(AiState.Aggro, AiEvent.MagicHit, OnMagicHit);
+		On(AiState.Aggro, AiEvent.MagicHit, OnMagicHit);
 	}
 
 	protected override IEnumerable Idle()
 	{
-		var num = Random();
-		if (num < 10) // 10%
+		SwitchRandom();
+		if (Case(10))
 			Do(Wander(250, 500, true));
-		else if (num < 40) // 30%
+		else if (Case(30))
 			Do(Wander(250, 500, false));
-		else if (num < 60) // 20%
+		else if (Case(20))
 			Do(Wait(4000, 6000));
-		else if (num < 70) // 10%
+		else if (Case(10))
 			Do(PrepareSkill(SkillId.Lightningbolt));
+
+		Do(Wait(2000, 5000));
+	}
+
+	protected override IEnumerable Alert()
+	{
+		Do(Say("When will my time come...", "Hahaha...", "Growl.", "I'll be watching you.", "Growling", "", "", ""));
+
+		SwitchRandom();
+		if (Case(20))
+		{
+			Do(Wait(1000, 2000));
+		}
+		else if (Case(30))
+		{
+			Do(Wait(1000, 4000));
+
+			if (Random() < 90)
+			{
+				Do(Circle(600, 2000, 2000));
+			}
+			else
+			{
+				Do(Attack(Rnd(1, 2, 3), 4000));
+			}
+		}
 
 		Do(Wait(2000, 5000));
 	}
 
 	protected override IEnumerable Aggro()
 	{
-		var num = Random();
-		if (num < 35) // 35%
+		SwitchRandom();
+		if (Case(35))
 		{
 			if (Random() < 50)
 				Do(Wander(100, 200, false));
 
 			Do(Attack(3, 4000));
-			Do(Say("..."));
+			Do(Say("I'll make you remember.", "Take this!", "Are you glaring at me?", "", "", "", ""));
 
 			if (Random() < 80)
 			{
@@ -50,7 +79,7 @@ public class GargoyleAi : AiScript
 				Do(Wait(2000));
 				Do(UseSkill());
 				Do(Wait(2000));
-				Do(Say("!!"));
+				Do(Say("..."));
 			}
 			else
 			{
@@ -58,31 +87,31 @@ public class GargoyleAi : AiScript
 				Do(Follow(50, false, 5000));
 			}
 		}
-		else if (num < 50) // 15%
+		else if (Case(15))
 		{
 			Do(PrepareSkill(SkillId.Lightningbolt));
-			Do(Say("..."));
+			Do(Say("Deceivable human tricks.", "", "", "", ""));
 			Do(Attack(1, 4000));
 			Do(Attack(2, 4000));
 			Do(Wait(500, 2000));
 		}
-		else if (num < 70) // 20%
+		else if (Case(20))
 		{
-			Do(Say("..."));
+			Do(Say("How dare you disregard us.", "I'm coming in!", "", "", "", ""));
 
-			num = Random();
-			if (num < 40) // 40%
+			SwitchRandom();
+			if (Case(40))
 			{
 				Do(PrepareSkill(SkillId.Smash));
 				Do(Attack(1, 4000));
 			}
-			else if (num < 70) // 30%
+			else if (Case(30))
 			{
 				Do(PrepareSkill(SkillId.Smash));
 				Do(CancelSkill());
 				Do(Attack(3, 4000));
 			}
-			else // 30%
+			else if (Case(30))
 			{
 				Do(PrepareSkill(SkillId.Defense));
 				Do(Wait(2000, 7000));
@@ -90,27 +119,27 @@ public class GargoyleAi : AiScript
 
 			Do(Wait(4000, 2000));
 		}
-		else if (num < 80) // 10%
+		else if (Case(10))
 		{
-			Do(Say("..."));
+			Do(Say("Thoughtless humans...", "", "", "", ""));
 			if (Random() < 60)
 				Do(Circle(400, 2000, 2000, true));
 			else
 				Do(Follow(400, true, 5000));
 		}
-		else if (num < 90) // 10%
+		else if (Case(10))
 		{
-			num = Random();
-			if (num < 60) // 40%
+			SwitchRandom();
+			if (Case(40))
 				Do(Circle(400, 2000, 2000, false));
-			else if (num < 70) // 30%
+			else if (Case(30))
 				Do(Follow(400, false, 5000));
-			else // 30%
+			else if (Case(30))
 				Do(KeepDistance(1000, false, 5000));
 		}
-		else // 10%
+		else if (Case(10))
 		{
-			Do(Say("..."));
+			Do(Say("Don't polute our land with your filth.", "You shall fall!", "I see your sweat running...", "", "", "", ""));
 			Do(PrepareSkill(SkillId.Counterattack));
 			Do(Wait(1000, 10000));
 			Do(CancelSkill());
@@ -119,26 +148,26 @@ public class GargoyleAi : AiScript
 
 	private IEnumerable OnHit()
 	{
-		Do(Say("..."));
+		Do(Say("Hak!", "Gah!", "Darn!", "", ""));
 
-		var num = Random();
-		if (num < 20) // 20%
+		SwitchRandom();
+		if (Case(20))
 			Do(KeepDistance(1000, false, 2000));
-		else if (num < 70) // 50%
+		else if (Case(50))
 			Do(Attack(3, 4000));
 	}
 
 	private IEnumerable OnKnockDown()
 	{
-		Do(Say("Barr!", "Barr!", "", ""));
+		Do(Say("Ugh!", "Argh!", "Thump!", "", ""));
 
-		var num = Random();
-		if (num < 20) // 20%
+		SwitchRandom();
+		if (Case(20))
 		{
 			Do(PrepareSkill(SkillId.Smash));
 			Do(Attack(1, 3000));
 		}
-		else if (num < 65) // 45%
+		else if (Case(45))
 		{
 			Do(PrepareSkill(SkillId.Defense));
 			if (Random() < 60)
@@ -147,7 +176,7 @@ public class GargoyleAi : AiScript
 				Do(Follow(400, true, 5000));
 			Do(CancelSkill());
 		}
-		else if (num < 90) // 25%
+		else if (Case(25))
 		{
 			Do(PrepareSkill(SkillId.Lightningbolt));
 			Do(Wait(1000, 2000));
@@ -156,14 +185,19 @@ public class GargoyleAi : AiScript
 
 	private IEnumerable OnDefenseHit()
 	{
-		Do(Say("!"));
+		Do(Say("Have you read my thoughts?", "That will do!", "Just as I expected.", "You're trapped now.", "You'll only feel terror from now on.", "", ""));
 		Do(Attack(3, 4000));
 
 		if (Random() < 40)
 		{
 			Do(PrepareSkill(SkillId.Lightningbolt));
-			Do(Say("!!!!!"));
+			Do(Say("..."));
 			Do(Wait(1000, 2000));
 		}
+	}
+
+	private IEnumerable OnMagicHit()
+	{
+		Do(Say("I'll remember this magic.", "And return it back!", "Where do you think you're going?", "Magic?", "Mere human magic!"));
 	}
 }

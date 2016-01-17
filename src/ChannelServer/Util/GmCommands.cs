@@ -22,6 +22,11 @@ using System.Linq;
 using Aura.Mabi.Network;
 using Aura.Channel.World;
 using System.Text.RegularExpressions;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using Aura.Channel.World.Dungeons;
+using System.Drawing.Text;
 
 namespace Aura.Channel.Util
 {
@@ -83,6 +88,7 @@ namespace Aura.Channel.Util
 			Add(50, 50, "weather", "[0.0~2.0|clear|rain|storm|type1~type12]", HandleWeather);
 			Add(50, 50, "telewalk", "", HandleTeleWalk);
 			Add(50, 50, "points", "<modificator>", HandlePoints);
+			Add(50, 50, "fillpotions", "", HandleFillPotions);
 
 			// Admins
 			Add(99, 99, "dynamic", "[variant]", HandleDynamic);
@@ -91,6 +97,8 @@ namespace Aura.Channel.Util
 			Add(99, -1, "reloadscripts", "", HandleReloadScripts);
 			Add(99, -1, "reloadconf", "", HandleReloadConf);
 			Add(99, 99, "closenpc", "", HandleCloseNpc);
+			Add(99, 99, "nosave", "", HandleNoSave);
+			Add(99, 99, "dbgregion", "[scale=20] [entityIds]", HandleDebugRegion);
 
 			// Aliases
 			AddAlias("item", "drop");
@@ -377,7 +385,8 @@ namespace Aura.Channel.Util
 			{
 				Send.ServerMessage(sender,
 					Localization.Get("Destinations:") +
-					" Tir Chonaill, Dugald Isle, Dunbarton, Gairech, Bangor, Emain Macha, Taillteann, Tara, Cobh, Ceo Island, Nekojima, GM Island"
+					" Tir Chonaill, Dugald Isle, Dunbarton, Gairech, Bangor, Emain Macha, Taillteann, Tara, Cobh, Ceo Island, Nekojima, GM Island," +
+					" Alby, Ciar, Rabbie, Math, Fiodh, Barri, Albey"
 				);
 				return CommandResult.InvalidArgument;
 			}
@@ -398,6 +407,13 @@ namespace Aura.Channel.Util
 			else if (destination.StartsWith("ceo")) { regionId = 56; x = 8987; y = 9611; }
 			else if (destination.StartsWith("neko")) { regionId = 600; x = 114430; y = 79085; }
 			else if (destination.StartsWith("gm")) { regionId = 22; x = 2500; y = 2500; }
+			else if (destination.StartsWith("alby")) { regionId = 13; x = 3200; y = 3200; }
+			else if (destination.StartsWith("ciar")) { regionId = 11; x = 3200; y = 3200; }
+			else if (destination.StartsWith("rabbie")) { regionId = 24; x = 3200; y = 3425; }
+			else if (destination.StartsWith("math")) { regionId = 25; x = 3200; y = 3425; }
+			else if (destination.StartsWith("barri")) { regionId = 32; x = 3200; y = 2880; }
+			else if (destination.StartsWith("fiodh")) { regionId = 49; x = 3530; y = 7150; }
+			else if (destination.StartsWith("albey")) { regionId = 44; x = 3200; y = 3450; }
 			else
 			{
 				Send.ServerMessage(sender, Localization.Get("Unkown destination"), args[1]);
@@ -961,10 +977,14 @@ namespace Aura.Channel.Util
 
 		private CommandResult HandleCloseNpc(ChannelClient client, Creature sender, Creature target, string message, IList<string> args)
 		{
-			if (!client.NpcSession.IsValid())
+			if (!target.Client.NpcSession.IsValid())
 				return CommandResult.Fail;
 
-			Send.NpcTalkEndR(client.NpcSession.Script.Player, client.NpcSession.Script.NPC.EntityId, "Ended by closenpc command.");
+			Send.NpcTalkEndR(target.Client.NpcSession.Script.Player, target.Client.NpcSession.Script.NPC.EntityId, "Ended by closenpc command.");
+
+			Send.ServerMessage(sender, Localization.Get("Closed NPC dialog."));
+			if (target != sender)
+				Send.ServerMessage(target, Localization.Get("{0} closed your NPC dialog."), sender.Name);
 
 			return CommandResult.Okay;
 		}
@@ -1881,6 +1901,165 @@ namespace Aura.Channel.Util
 				Send.ServerMessage(target, Localization.Get("Your Pon have been modificated by {2}: {0} -> {1}."), oldVal, newVal, sender.Name);
 
 			return CommandResult.Okay;
+		}
+
+		private CommandResult HandleNoSave(ChannelClient client, Creature sender, Creature target, string message, IList<string> args)
+		{
+			var creatures = target.Client.Creatures.Values.ToArray();
+
+			foreach (var creature in creatures)
+			{
+				var pc = creature as PlayerCreature;
+				if (pc != null)
+					pc.Save = false;
+			}
+
+			Send.ServerMessage(sender, Localization.Get("Marked {0} creatures to *not* be saved."), creatures.Length);
+			if (sender != target)
+				Send.ServerMessage(sender, Localization.Get("{0} marked your creatures to *not* be saved on logout."), sender.Name);
+
+			return CommandResult.Okay;
+		}
+
+		private CommandResult HandleFillPotions(ChannelClient client, Creature sender, Creature target, string message, IList<string> args)
+		{
+			var count = 0;
+
+			var items = target.Inventory.GetItems();
+			foreach (var item in items)
+			{
+				if (item.Amount < item.Data.StackMax && item.HasTag("/usable/potion/"))
+				{
+					item.Amount = item.Data.StackMax;
+					Send.ItemUpdate(target, item);
+					count++;
+				}
+			}
+
+			if (count == 0)
+			{
+				Send.ServerMessage(sender, Localization.Get("No potions found."));
+				return CommandResult.Okay;
+			}
+
+			Send.ServerMessage(sender, Localization.Get("Filled {0} potion stacks."), count);
+			if (target != sender)
+				Send.ServerMessage(sender, Localization.Get("{0} filled {1} of your potion stacks."), sender.Name, count);
+
+			return CommandResult.Okay;
+		}
+
+		private CommandResult HandleDebugRegion(ChannelClient client, Creature sender, Creature target, string message, IList<string> args)
+		{
+			var scale = 20;
+			var padding = 60;
+			var entityIds = args.Any(a => a == "entityIds");
+
+			if (args.Count > 1)
+			{
+				if (!int.TryParse(args[1], out scale))
+					scale = 20;
+			}
+
+			var regionName = target.Region.Name;
+			var props = target.Region.GetProps(a => true);
+			var events = target.Region.GetClientEvents(a => true);
+
+			var width = (target.Region.Data.X1 + target.Region.Data.X2) / scale;
+			var height = (target.Region.Data.Y1 + target.Region.Data.Y2) / scale;
+
+			var floorRegion = target.Region as DungeonFloorRegion;
+			if (floorRegion != null)
+			{
+				width = floorRegion.Floor.MazeGenerator.Width * (Dungeon.TileSize / scale);
+				height = floorRegion.Floor.MazeGenerator.Height * (Dungeon.TileSize / scale);
+			}
+
+			width += padding * 2;
+			height += padding * 2;
+
+			try
+			{
+				Send.ServerMessage(sender, Localization.Get("Please wait..."));
+
+				using (var bmp = new Bitmap(width, height))
+				using (var gfx = Graphics.FromImage(bmp))
+				{
+					gfx.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
+
+					var sf = new StringFormat();
+					sf.Alignment = StringAlignment.Center;
+					sf.LineAlignment = StringAlignment.Center;
+
+					foreach (var entity in events)
+					{
+						var pen = (entity.IsCollision ? Pens.Blue : Pens.LightGray);
+
+						foreach (var points in entity.Shapes)
+						{
+							gfx.DrawLine(pen, points[0].X / scale + padding, (bmp.Height - points[0].Y / scale) - padding, points[1].X / scale + padding, (bmp.Height - points[1].Y / scale) - padding);
+							gfx.DrawLine(pen, points[1].X / scale + padding, (bmp.Height - points[1].Y / scale) - padding, points[2].X / scale + padding, (bmp.Height - points[2].Y / scale) - padding);
+							gfx.DrawLine(pen, points[2].X / scale + padding, (bmp.Height - points[2].Y / scale) - padding, points[3].X / scale + padding, (bmp.Height - points[3].Y / scale) - padding);
+							gfx.DrawLine(pen, points[3].X / scale + padding, (bmp.Height - points[3].Y / scale) - padding, points[0].X / scale + padding, (bmp.Height - points[0].Y / scale) - padding);
+						}
+					}
+
+					var posCache = new Dictionary<long, int>();
+
+					foreach (var entity in props)
+					{
+						var pen = Pens.Black;
+
+						foreach (var points in entity.Shapes)
+						{
+							gfx.DrawLine(pen, points[0].X / scale + padding, (bmp.Height - points[0].Y / scale) - padding, points[1].X / scale + padding, (bmp.Height - points[1].Y / scale) - padding);
+							gfx.DrawLine(pen, points[1].X / scale + padding, (bmp.Height - points[1].Y / scale) - padding, points[2].X / scale + padding, (bmp.Height - points[2].Y / scale) - padding);
+							gfx.DrawLine(pen, points[2].X / scale + padding, (bmp.Height - points[2].Y / scale) - padding, points[3].X / scale + padding, (bmp.Height - points[3].Y / scale) - padding);
+							gfx.DrawLine(pen, points[3].X / scale + padding, (bmp.Height - points[3].Y / scale) - padding, points[0].X / scale + padding, (bmp.Height - points[0].Y / scale) - padding);
+						}
+
+						if (entityIds && entity.Shapes.Any())
+						{
+							var x = entity.Info.X / scale + padding;
+							var y = (bmp.Height - entity.Info.Y / scale) - padding;
+
+							var xy = ((long)x << 32) + (long)y;
+							var same = (posCache.ContainsKey(xy) ? posCache[xy] : 0);
+							if (same == 0)
+								posCache[xy] = 1;
+							else
+								posCache[xy]++;
+
+							y += SystemFonts.DefaultFont.Height * same;
+
+							gfx.DrawString(entity.EntityId.ToString("X16"), SystemFonts.DefaultFont, Brushes.Black, new PointF(x - 1, y - 0), sf);
+							gfx.DrawString(entity.EntityId.ToString("X16"), SystemFonts.DefaultFont, Brushes.Black, new PointF(x + 1, y - 0), sf);
+							gfx.DrawString(entity.EntityId.ToString("X16"), SystemFonts.DefaultFont, Brushes.Black, new PointF(x - 0, y - 1), sf);
+							gfx.DrawString(entity.EntityId.ToString("X16"), SystemFonts.DefaultFont, Brushes.Black, new PointF(x - 0, y + 1), sf);
+							gfx.DrawString(entity.EntityId.ToString("X16"), SystemFonts.DefaultFont, Brushes.Black, new PointF(x - 1, y - 1), sf);
+							gfx.DrawString(entity.EntityId.ToString("X16"), SystemFonts.DefaultFont, Brushes.Black, new PointF(x + 1, y + 1), sf);
+							gfx.DrawString(entity.EntityId.ToString("X16"), SystemFonts.DefaultFont, Brushes.Black, new PointF(x - 1, y + 1), sf);
+							gfx.DrawString(entity.EntityId.ToString("X16"), SystemFonts.DefaultFont, Brushes.Black, new PointF(x - 1, y + 1), sf);
+							gfx.DrawString(entity.EntityId.ToString("X16"), SystemFonts.DefaultFont, Brushes.White, new PointF(x, y), sf);
+						}
+					}
+
+					if (!Directory.Exists("user/debug/"))
+						Directory.CreateDirectory("user/debug/");
+
+					var path = "user/debug/" + regionName + ".png";
+					bmp.Save(path, ImageFormat.Png);
+
+					Send.ServerMessage(sender, Localization.Get("Debug image created: {0}"), path);
+
+					return CommandResult.Okay;
+				}
+			}
+			catch (ArgumentException)
+			{
+				Send.ServerMessage(sender, Localization.Get("Failed to create debug image, try to use a larger scale."));
+				return CommandResult.Fail;
+			}
 		}
 	}
 

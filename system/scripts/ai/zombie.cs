@@ -4,7 +4,6 @@
 // AI for Zombie type monster.
 //--- History ---------------------------------------------------------------
 // 1.0 Added general AI behaviors
-// Missing: aggro over time, visual angle
 //---------------------------------------------------------------------------
 
 [AiScript("zombie")]
@@ -28,7 +27,8 @@ public class ZombieAi : AiScript
 
 	public ZombieAi()
 	{
-		SetAggroRadius(1500); // audio 1200 visual Angle 90°
+		SetVisualField(1500, 90);
+		SetAggroRadius(1200);
 		Hates("/pc/", "/pet/");
 		Hates("/ahchemy_golem/");
 
@@ -46,14 +46,14 @@ public class ZombieAi : AiScript
 
 	protected override IEnumerable Aggro()
 	{
-		var rndnum = Random();
-		if (rndnum < 30) // 30%
+		SwitchRandom();
+		if (Case(30))
 		{
 			if (Random() < 30)
 				Do(Say(ZombieChat));
 			Do(Attack(5, 10000));
 		}
-		else if (rndnum < 80) // 50%
+		else if (Case(50))
 		{
 			if (Random() < 60)
 				Do(Say(ZombieChat));
@@ -61,7 +61,7 @@ public class ZombieAi : AiScript
 			Do(Wait(2000, 15000));
 			Do(CancelSkill());
 		}
-		else // 20%
+		else if (Case(20))
 		{
 			if (Random() < 30)
 				Do(Say(ZombieChat));
@@ -85,14 +85,14 @@ public class ZombieAi : AiScript
 	{
 		if (Random() < 60)
 			Do(Say(ZombieChat));
-		var rndOKD = Random();
-		if (rndOKD < 60) // 60%
+
+		if (Random() < 60)
 		{
 			Do(PrepareSkill(SkillId.Counterattack));
 			Do(Wait(4000, 10000));
 			Do(CancelSkill());
 		}
-		else // 40%
+		else
 		{
 			Do(Attack(5, 4000));
 		}

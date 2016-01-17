@@ -141,11 +141,6 @@ namespace Aura.Channel.World.Entities
 		public Locks Locks { get; protected set; }
 
 		/// <summary>
-		/// Returns whether creature is able to receive exp and level up.
-		/// </summary>
-		public virtual bool LevelingEnabled { get { return false; } }
-
-		/// <summary>
 		/// Returns whether creature is able to learn skills automatically
 		/// (e.g. Counterattack).
 		/// </summary>
@@ -160,6 +155,16 @@ namespace Aura.Channel.World.Entities
 		/// Time of last rebirth.
 		/// </summary>
 		public DateTime LastRebirth { get; set; }
+
+		/// <summary>
+		/// Time of last aging.
+		/// </summary>
+		public DateTime LastAging { get; set; }
+
+		/// <summary>
+		/// Time of last login.
+		/// </summary>
+		public DateTime LastLogin { get; set; }
 
 		/// <summary>
 		/// How many times the character rebirthed.
@@ -784,7 +789,7 @@ namespace Aura.Channel.World.Entities
 		/// Defense from monster xml
 		/// </summary>
 		public int DefenseBase { get { return this.RaceData.Defense; } }
-		public int DefenseBaseMod { get { return (int)this.StatMods.Get(Stat.DefenseBaseMod) + this.Inventory.GetEquipmentDefense(); } } // Skills, Titles, etc?
+		public int DefenseBaseMod { get { return (int)this.StatMods.Get(Stat.DefenseBaseMod); } } // Skills, Titles, etc?
 		public int DefenseMod { get { return (int)this.StatMods.Get(Stat.DefenseMod); } } // eg Reforging? (yellow)
 		public int Defense
 		{
@@ -813,7 +818,7 @@ namespace Aura.Channel.World.Entities
 		/// Protect from monster xml
 		/// </summary>
 		public float ProtectionBase { get { return this.RaceData.Protection; } }
-		public float ProtectionBaseMod { get { return this.StatMods.Get(Stat.ProtectionBaseMod) + this.Inventory.GetEquipmentProtection(); } }
+		public float ProtectionBaseMod { get { return this.StatMods.Get(Stat.ProtectionBaseMod); } }
 		public float ProtectionMod { get { return this.StatMods.Get(Stat.ProtectionMod); } }
 		public float Protection
 		{
@@ -1190,6 +1195,16 @@ namespace Aura.Channel.World.Entities
 		}
 
 		/// <summary>
+		/// Stops movement and resets creature to the given position.
+		/// </summary>
+		/// <param name="pos"></param>
+		public void ResetPosition(Position pos)
+		{
+			this.SetPosition(pos.X, pos.Y);
+			Send.SetLocation(this, pos.X, pos.Y);
+		}
+
+		/// <summary>
 		/// Warps creature to target location,
 		/// returns false if warp is unsuccessful.
 		/// </summary>
@@ -1475,7 +1490,7 @@ namespace Aura.Channel.World.Entities
 		/// <returns></returns>
 		public virtual bool CanTarget(Creature creature)
 		{
-			if (this.IsDead || creature.IsDead)
+			if (this.IsDead || creature.IsDead || creature == this)
 				return false;
 
 			return true;
@@ -1692,49 +1707,19 @@ namespace Aura.Channel.World.Entities
 		}
 
 		/// <summary>
-		/// Calculates damage for dual guns
+		/// Returns random base damage for a ranged attack,
+		/// e.g. Ranged Attack or Magnum Shot, based on race, weapon, etc.
 		/// </summary>
-		/// <remarks>
-		/// http://wiki.mabinogiworld.com/view/Category:Dual_Guns
-		/// </remarks>
 		/// <returns></returns>
-		public float GetRndDualGunDamage()
-		{
-			// Min and Max from Str and Int stats
-			var minDamage = (float)(this.Str + this.Int) / 6;
-			var maxDamage = (float)(this.Str + this.Int) / 5;
-
-			// Min and Max from Gun item
-			var gunMinDamage = (this.RightHand == null ? 0 : this.RightHand.OptionInfo.AttackMin);
-			var gunMaxDamage = (this.RightHand == null ? 0 : this.RightHand.OptionInfo.AttackMax);
-
-			var totalMinDamage = minDamage + gunMinDamage;
-			var totalMaxDamage = maxDamage + gunMinDamage;
-
-			var addedBulletDamage = 0;
-
-			// Max from Gun Bullet
-			if (this.RightHand != null)
-			{
-				if (this.RightHand.MetaData1.Has("GBAMAX"))
-				{
-					addedBulletDamage = this.RightHand.MetaData1.GetShort("GBAMAX");
-					totalMaxDamage += addedBulletDamage;
-				}
-			}
-
-			// Balance
-			var balance = (this.RightHand == null ? this.BalanceBase + this.BalanceBaseMod : this.RightHand.OptionInfo.Balance);
-
-			// Damage
-			return this.GetRndDamage(totalMinDamage, totalMaxDamage, balance);
-		}
-
 		public float GetRndRangedDamage()
 		{
 			// Base damage
-			float min = (this.RightHand == null ? 0 : this.RightHand.OptionInfo.AttackMin);
-			float max = (this.RightHand == null ? 0 : this.RightHand.OptionInfo.AttackMax);
+			float min = this.AttackMinBase;
+			float max = this.AttackMaxBase;
+
+			// Weapon
+			min += (this.RightHand == null ? 0 : this.RightHand.OptionInfo.AttackMin);
+			max += (this.RightHand == null ? 0 : this.RightHand.OptionInfo.AttackMax);
 
 			// Dex bonus
 			min += (this.Dex - 10) / 3.5f;
@@ -1923,11 +1908,24 @@ namespace Aura.Channel.World.Entities
 		/// <param name="val"></param>
 		public void GiveExp(long val)
 		{
-			if (!this.LevelingEnabled) return;
-
 			this.Exp += val;
 
 			var levelStats = AuraData.StatsLevelUpDb.Find(this.RaceId, this.Age);
+			if (levelStats == null)
+			{
+				if ((levelStats = AuraData.StatsLevelUpDb.Find(10000, 17)) == null)
+				{
+					Log.Error("Creature.GiveExp: No valid level up stats found for race {0}, age {1}.", this.RaceId, this.Age);
+				}
+				else
+				{
+					// Only warn when creature was a player, we'll let NPCs fall
+					// back to Human 17 silently, until we know if they
+					// have specific level up stats.
+					if (this.IsPlayer)
+						Log.Warning("Creature.GiveExp: Level up stats missing for race {0}, age {1}. Falling back to Human 17.", this.RaceId, this.Age);
+				}
+			}
 
 			var prevLevel = this.Level;
 			float ap = this.AbilityPoints;
@@ -1948,7 +1946,7 @@ namespace Aura.Channel.World.Entities
 				if (levelStats == null)
 					continue;
 
-				this.AbilityPoints += levelStats.AP;
+				this.AbilityPoints += (short)levelStats.AP;
 				this.LifeMaxBase += levelStats.Life;
 				this.ManaMaxBase += levelStats.Mana;
 				this.StaminaMaxBase += levelStats.Stamina;
@@ -1959,19 +1957,16 @@ namespace Aura.Channel.World.Entities
 				this.LuckBase += levelStats.Luck;
 			}
 
+			// Only notify on level up
 			if (prevLevel < this.Level)
 			{
-				// Only notify on level up
-				if (levelStats == null)
-					Log.Unimplemented("GiveExp: Level up stats missing for race '{0}'.", this.RaceId);
-
 				this.FullHeal();
 
 				Send.StatUpdateDefault(this);
 				Send.LevelUp(this);
 
 				// Only send aquire if stat crosses the X.0 border.
-				// Eg, 50.9 -> 50.1
+				// Eg, 50.9 -> 51.1
 				float diff = 0;
 				if ((diff = (this.AbilityPoints - (int)ap)) >= 1) Send.SimpleAcquireInfo(this, "ap", diff);
 				if ((diff = (this.LifeMaxBase - (int)life)) >= 1) Send.SimpleAcquireInfo(this, "life", diff);
@@ -1988,6 +1983,89 @@ namespace Aura.Channel.World.Entities
 			}
 			else
 				Send.StatUpdate(this, StatUpdateType.Private, Stat.Experience);
+		}
+
+		/// <summary>
+		/// Increases age by years and sends update packets.
+		/// </summary>
+		/// <param name="years"></param>
+		public void AgeUp(short years)
+		{
+			if (years < 0 || this.Age + years > short.MaxValue)
+				return;
+
+			float life = 0, mana = 0, stamina = 0, str = 0, dex = 0, int_ = 0, will = 0, luck = 0;
+			var ap = 0;
+
+			var newAge = this.Age + years;
+			while (this.Age < newAge)
+			{
+				// Increase age before requestin statUp, we want the stats
+				// for the next age.
+				this.Age++;
+
+				var statUp = AuraData.StatsAgeUpDb.Find(this.RaceId, this.Age);
+				if (statUp == null)
+				{
+					if ((statUp = AuraData.StatsAgeUpDb.Find(10000, 17)) == null)
+					{
+						Log.Error("Creature.AgeUp: No valid age up stats found for race {0}, age {1}.", this.RaceId, this.Age);
+					}
+					else
+					{
+						// Only warn when creature was a player, we'll let NPCs fall
+						// back to Human 17 silently.
+						if (this.IsPlayer)
+							Log.Warning("Creature.AgeUp: Age up stats missing for race {0}, age {1}. Falling back to Human 17.", this.RaceId, this.Age);
+					}
+				}
+
+				// Collect bonuses for multi aging
+				life += statUp.Life;
+				mana += statUp.Mana;
+				stamina += statUp.Stamina;
+				str += statUp.Str;
+				dex += statUp.Dex;
+				int_ += statUp.Int;
+				will += statUp.Will;
+				luck += statUp.Luck;
+				ap += statUp.AP;
+			}
+
+			// Apply stat bonuses
+			this.LifeMaxBase += life;
+			this.Life += life;
+			this.ManaMaxBase += mana;
+			this.Mana += mana;
+			this.StaminaMaxBase += stamina;
+			this.Stamina += stamina;
+			this.StrBase += str;
+			this.DexBase += dex;
+			this.IntBase += int_;
+			this.WillBase += will;
+			this.LuckBase += luck;
+			this.AbilityPoints += (short)ap;
+
+			this.LastAging = DateTime.Now;
+
+			if (this is Character)
+				this.Height = Math.Min(1.0f, 1.0f / 7.0f * (this.Age - 10.0f)); // 0 ~ 1.0
+
+			// Send stat bonuses
+			if (life != 0) Send.SimpleAcquireInfo(this, "life", mana);
+			if (mana != 0) Send.SimpleAcquireInfo(this, "mana", mana);
+			if (stamina != 0) Send.SimpleAcquireInfo(this, "stamina", stamina);
+			if (str != 0) Send.SimpleAcquireInfo(this, "str", str);
+			if (dex != 0) Send.SimpleAcquireInfo(this, "dex", dex);
+			if (int_ != 0) Send.SimpleAcquireInfo(this, "int", int_);
+			if (will != 0) Send.SimpleAcquireInfo(this, "will", will);
+			if (luck != 0) Send.SimpleAcquireInfo(this, "luck", luck);
+			if (ap != 0) Send.SimpleAcquireInfo(this, "ap", ap);
+
+			Send.StatUpdateDefault(this);
+
+			// XXX: Replace with effect and notice to allow something to happen past age 25?
+			Send.AgeUpEffect(this, this.Age);
 		}
 
 		/// <summary>

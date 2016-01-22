@@ -97,15 +97,13 @@ namespace Aura.Channel.Skills.Guns
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
 			creature.StopMove();
-			creature.Lock(Locks.Walk | Locks.Run);
+
 			Send.UseMotion(creature, 131, 2, false, false);
 
-			/* Removed Until Further Notice */
-			/*
-			var unkPacket = new Packet(0x7534, creature.EntityId); //?
-			unkPacket.PutByte(0).PutByte(0).PutByte(0);
-			creature.Region.Broadcast(unkPacket, creature);
-			*/
+			/* Locks -----------------------
+			Walk|Run|PickUpAndDrop|TalkToNpc
+			----------------------------- */
+			creature.Lock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc);
 
 			Send.SkillPrepare(creature, skill.Info.Id, skill.GetCastTime());
 
@@ -121,6 +119,11 @@ namespace Aura.Channel.Skills.Guns
 		/// <returns></returns>
 		public bool Ready(Creature creature, Skill skill, Packet packet)
 		{
+			/* Locks -----------------------
+			ChangeStance|Walk|Run|PickUpAndDrop|TalkToNpc
+			----------------------------- */
+			creature.Lock(Locks.ChanceStance | Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc);
+
 			skill.Stacks = 1;
 			Send.SkillReady(creature, skill.Info.Id);
 
@@ -135,6 +138,11 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="packet"></param>
 		public void Use(Creature attacker, Skill skill, Packet packet)
 		{
+			/* Locks -----------------------
+			Walk|Run
+			----------------------------- */
+			attacker.Lock(Locks.Walk | Locks.Run);
+
 			var targetAreaId = packet.GetLong();
 			var targetAreaLoc = new Location(targetAreaId);
 			var targetAreaPos = new Position(targetAreaLoc.X, targetAreaLoc.Y);
@@ -328,6 +336,12 @@ namespace Aura.Channel.Skills.Guns
 			t2 = new System.Threading.Timer(_ =>
 			{
 				Send.UseMotion(attacker, 131, 4, false, false); // Bullet Storm ending motion
+
+				/* Unlocks ---------------------
+				ChangeStance|UseItem|Attack
+				----------------------------- */
+				attacker.Unlock(Locks.ChanceStance | Locks.UseItem | Locks.Attack);
+
 				GC.KeepAlive(t2);
 			}, null, totalDelay, System.Threading.Timeout.Infinite);
 
@@ -344,7 +358,9 @@ namespace Aura.Channel.Skills.Guns
 		{
 			Send.SkillComplete(creature, skill.Info.Id);
 			creature.Skills.ActiveSkill = null;
-			creature.Unlock(Locks.Walk | Locks.Run);
+
+			// Remove Leftover Locks
+			creature.Unlock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc);
 		}
 
 		/// <summary>
@@ -355,7 +371,9 @@ namespace Aura.Channel.Skills.Guns
 		public void Cancel(Creature creature, Skill skill)
 		{
 			Send.MotionCancel2(creature, 0);
-			creature.Unlock(Locks.Walk | Locks.Run);
+
+			// Remove Leftover Locks
+			creature.Unlock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc | Locks.ChanceStance);
 		}
 
 		/// <summary>

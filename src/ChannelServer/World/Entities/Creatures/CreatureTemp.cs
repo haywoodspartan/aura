@@ -42,6 +42,9 @@ namespace Aura.Channel.World.Entities.Creatures
 
 		// Way of the Gun training counter
 		public int WOTGKillCount;
+
+		// LightningRod full charge variable
+		public bool LightningRodFullCharge;
 		
 		// Backup of target's position when gathering, for run away check
 		public Position GatheringTargetPosition;

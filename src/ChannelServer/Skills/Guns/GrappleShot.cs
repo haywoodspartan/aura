@@ -98,6 +98,11 @@ namespace Aura.Channel.Skills.Guns
 			if (bulletCount < skill.RankData.Var1 && !creature.Conditions.Has(ConditionsD.WayOfTheGun))
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
+			/* Locks -----------------------
+			PickUpAndDrop|TalkToNpc
+			----------------------------- */
+			creature.Lock(Locks.PickUpAndDrop | Locks.TalkToNpc);
+
 			Send.SkillPrepare(creature, skill.Info.Id, skill.GetCastTime());
 
 			return true;
@@ -112,6 +117,11 @@ namespace Aura.Channel.Skills.Guns
 		/// <returns></returns>
 		public bool Ready(Creature creature, Skill skill, Packet packet)
 		{
+			/* Locks -----------------------
+			PickUpAndDrop|TalkToNpc
+			----------------------------- */
+			creature.Lock(Locks.PickUpAndDrop | Locks.TalkToNpc);
+
 			skill.Stacks = 1;
 			Send.SkillReady(creature, skill.Info.Id);
 
@@ -126,6 +136,11 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="packet"></param>
 		public void Use(Creature attacker, Skill skill, Packet packet)
 		{
+			/* Locks -----------------------
+			Walk|Run
+			----------------------------- */
+			attacker.Lock(Locks.Walk | Locks.Run);
+
 			// Get Target
 			var targetEntityId = packet.GetLong();
 			var target = attacker.Region.GetCreature(targetEntityId);
@@ -302,6 +317,11 @@ namespace Aura.Channel.Skills.Guns
 			// Train
 			skill.Train(1); // Use the skill
 
+			/* Unlocks -----------------------
+			Attack
+			----------------------------- */
+			attacker.Unlock(Locks.Attack);
+
 			this.Complete(attacker, skill, packet);
 		}
 
@@ -315,13 +335,9 @@ namespace Aura.Channel.Skills.Guns
 		{
 			Send.SkillComplete(creature, skill.Info.Id);
 			creature.Skills.ActiveSkill = null;
-			creature.Unlock(Locks.Walk | Locks.Run);
 
-			/*
-			var unkPacket1 = new Packet(0xA43B, creature.EntityId); //?
-			unkPacket1.PutShort(0).PutInt(0);
-			creature.Region.Broadcast(unkPacket1, creature);
-			*/
+			// Remove Leftover Locks
+			creature.Unlock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc);
 		}
 
 		/// <summary>
@@ -331,6 +347,8 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="skill"></param>
 		public void Cancel(Creature creature, Skill skill)
 		{
+			// Remove Leftover Locks
+			creature.Unlock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc);
 		}
 
 		/// <summary>

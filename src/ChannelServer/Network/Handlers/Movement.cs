@@ -219,6 +219,8 @@ namespace Aura.Channel.Network.Handlers
 			var y = packet.GetFloat();
 
 			var creature = client.GetCreatureSafe(packet.Id);
+
+			creature.TurnTo(x, y);
 		}
 	}
 }

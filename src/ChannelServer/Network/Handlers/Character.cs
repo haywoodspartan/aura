@@ -59,29 +59,6 @@ namespace Aura.Channel.Network.Handlers
 				return;
 			}
 
-			creature.DeadMenu.Clear();
-
-			// Defaults
-			creature.DeadMenu.Add(ReviveOptions.Town);
-			creature.DeadMenu.Add(ReviveOptions.WaitForRescue);
-
-			// Dungeons
-			if (creature.Region is DungeonRegion)
-			{
-				creature.DeadMenu.Add(ReviveOptions.DungeonEntrance);
-				creature.DeadMenu.Add(ReviveOptions.StatueOfGoddess);
-			}
-			// Fields
-			else
-			{
-				//if(creature.Exp > -90%)
-				creature.DeadMenu.Add(ReviveOptions.Here);
-			}
-
-			// Special
-			if (creature.Titles.SelectedTitle == TitleId.devCAT)
-				creature.DeadMenu.Add(ReviveOptions.HereNoPenalty);
-
 			Send.DeadMenuR(creature, creature.DeadMenu);
 		}
 
@@ -101,7 +78,6 @@ namespace Aura.Channel.Network.Handlers
 			var option = (ReviveOptions)(1 << (packet.GetInt() - 1));
 
 			var creature = client.GetCreatureSafe(packet.Id);
-			if (creature == null) return;
 
 			if (!creature.IsDead || !creature.DeadMenu.Has(option))
 			{
@@ -116,10 +92,8 @@ namespace Aura.Channel.Network.Handlers
 			switch (option)
 			{
 				case ReviveOptions.WaitForRescue:
-					// TODO: Implement hidden revive skill
-					//Send.DeadFeather(creature, ...);
-					//Send.Revived(creature, true, 0, 0, 0);
-					break;
+					creature.Revive(option);
+					return;
 
 				case ReviveOptions.Here:
 					goto case ReviveOptions.HereNoPenalty;

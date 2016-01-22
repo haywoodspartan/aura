@@ -1522,8 +1522,10 @@ namespace Aura.Channel.World.Inventory
 		/// <param name="item"></param>
 		private void ApplyDefenseBonuses(Item item)
 		{
-			_creature.StatMods.Add(Stat.DefenseBaseMod, item.OptionInfo.Defense, StatModSource.Equipment, item.EntityId);
-			_creature.StatMods.Add(Stat.ProtectionBaseMod, item.OptionInfo.Protection, StatModSource.Equipment, item.EntityId);
+			if (item.OptionInfo.Defense != 0)
+				_creature.StatMods.Add(Stat.DefenseBaseMod, item.OptionInfo.Defense, StatModSource.Equipment, item.EntityId);
+			if (item.OptionInfo.Protection != 0)
+				_creature.StatMods.Add(Stat.ProtectionBaseMod, item.OptionInfo.Protection, StatModSource.Equipment, item.EntityId);
 		}
 
 		/// <summary>
@@ -1677,6 +1679,8 @@ namespace Aura.Channel.World.Inventory
 						Send.ItemMoveInfo(_creature, rightItem, this.RightHandPocket, null);
 						if (_creature.Region != Region.Limbo)
 							Send.EquipmentMoved(_creature, this.RightHandPocket);
+
+						this.OnUnequip(rightItem);
 					}
 				}
 			}
@@ -1742,6 +1746,8 @@ namespace Aura.Channel.World.Inventory
 					Send.ItemMoveInfo(_creature, leftItem, leftPocket, null);
 					if (_creature.Region != Region.Limbo)
 						Send.EquipmentMoved(_creature, leftPocket);
+
+					this.OnUnequip(leftItem);
 				}
 			}
 		}

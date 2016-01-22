@@ -1939,6 +1939,8 @@ namespace Aura.Channel.World.Entities
 				item.Drop(this.Region, pos, Item.DropRadius, killer, false);
 
 			this.Drops.ClearStaticDrops();
+
+			this.DeadMenu.Update();
 		}
 
 		/// <summary>
@@ -2209,11 +2211,17 @@ namespace Aura.Channel.World.Entities
 					this.Life = this.LifeMax * 0.25f;
 					break;
 
-				case ReviveOptions.WaitForRescue:
+				case ReviveOptions.PhoenixFeather:
 					// 10% additional injuries
 					this.Injuries += this.LifeInjured * 0.10f;
 					this.Life = 1;
 					break;
+
+				case ReviveOptions.WaitForRescue:
+					this.DeadMenu.Options ^= ReviveOptions.PhoenixFeather;
+					Send.DeadFeather(this);
+					Send.Revived(this);
+					return;
 
 				default:
 					Log.Warning("Creature.Revive: Unknown revive option: {0}", option);
@@ -2225,6 +2233,7 @@ namespace Aura.Channel.World.Entities
 			}
 
 			this.Deactivate(CreatureStates.Dead);
+			this.DeadMenu.Clear();
 
 			Send.RemoveDeathScreen(this);
 			Send.StatUpdate(this, StatUpdateType.Private, Stat.Life, Stat.LifeInjured, Stat.LifeMax, Stat.LifeMaxMod, Stat.Stamina, Stat.Hunger);
@@ -2376,11 +2385,11 @@ namespace Aura.Channel.World.Entities
 		/// Returns targetable creatures in given range around creature.
 		/// </summary>
 		/// <param name="range">Radius around position.</param>
-		/// <param name="addAttackRange">Factor in attack range?</param>
+		/// <param name="options">Options to change the result.</param>
 		/// <returns></returns>
-		public ICollection<Creature> GetTargetableCreaturesInRange(int range, bool addAttackRange)
+		public ICollection<Creature> GetTargetableCreaturesInRange(int range, TargetableOptions options = TargetableOptions.None)
 		{
-			return this.GetTargetableCreaturesAround(this.GetPosition(), range, addAttackRange);
+			return this.GetTargetableCreaturesAround(this.GetPosition(), range, options);
 		}
 
 		/// <summary>
@@ -2389,15 +2398,15 @@ namespace Aura.Channel.World.Entities
 		/// </summary>
 		/// <param name="position">Reference position.</param>
 		/// <param name="range">Radius around position.</param>
-		/// <param name="addAttackRange">Factor in attack range?</param>
+		/// <param name="options">Options to change the result.</param>
 		/// <returns></returns>
-		public ICollection<Creature> GetTargetableCreaturesAround(Position position, int range, bool addAttackRange)
+		public ICollection<Creature> GetTargetableCreaturesAround(Position position, int range, TargetableOptions options = TargetableOptions.None)
 		{
 			var targetable = this.Region.GetCreatures(target =>
 			{
 				var targetPos = target.GetPosition();
 				var radius = range;
-				if (addAttackRange)
+				if ((options & TargetableOptions.AddAttackRange) != 0)
 				{
 					// This is unofficial, the target's "hitbox" should be
 					// factored in, but the total attack range is too much.
@@ -2409,7 +2418,7 @@ namespace Aura.Channel.World.Entities
 					&& this.CanTarget(target) // Check targetability
 					&& ((!this.Has(CreatureStates.Npc) || !target.Has(CreatureStates.Npc)) || this.Target == target) // Allow NPC on NPC only if it's the creature's target
 					&& targetPos.InRange(position, radius) // Check range
-					&& !this.Region.Collisions.Any(position, targetPos) // Check collisions between position
+					&& (((options & TargetableOptions.IgnoreWalls) != 0) || !this.Region.Collisions.Any(position, targetPos)) // Check collisions between positions
 					&& !target.Conditions.Has(ConditionsA.Invisible); // Check visiblility (GM)
 			});
 
@@ -2445,6 +2454,16 @@ namespace Aura.Channel.World.Entities
 			var x = pos.X - creaturePos.X;
 			var y = pos.Y - creaturePos.Y;
 
+			this.TurnTo(x, y);
+		}
+
+		/// <summary>
+		/// Turns creature in given direction.
+		/// </summary>
+		/// <param name="x"></param>
+		/// <param name="y"></param>
+		public void TurnTo(float x, float y)
+		{
 			this.Direction = MabiMath.DirectionToByte(x, y);
 			Send.TurnTo(this, x, y);
 		}
@@ -2859,5 +2878,20 @@ namespace Aura.Channel.World.Entities
 
 			return 1f + (result / 9f);
 		}
+	}
+
+	public enum TargetableOptions
+	{
+		None,
+
+		/// <summary>
+		/// Adds attack range of creature to the given range.
+		/// </summary>
+		AddAttackRange,
+
+		/// <summary>
+		/// Ignores collision lines between creature and potential targets.
+		/// </summary>
+		IgnoreWalls,
 	}
 }

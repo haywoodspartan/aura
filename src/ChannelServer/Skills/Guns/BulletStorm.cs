@@ -312,12 +312,10 @@ namespace Aura.Channel.Skills.Guns
 				tAction.Delay = bulletDist;
 				shootEffect.PutInt(bulletDist).PutLong(target.EntityId);
 
-				System.Threading.Timer t = null;
-				t = new System.Threading.Timer(_ =>
+				Task.Delay(bulletDist).ContinueWith(_ =>
 				{
 					attacker.TurnTo(target.GetPosition());
-					GC.KeepAlive(t);
-				}, null, bulletDist, System.Threading.Timeout.Infinite);
+				});
 			}
 			aAction.Creature.Stun = aAction.Stun;
 			cap.Handle();
@@ -332,8 +330,7 @@ namespace Aura.Channel.Skills.Guns
 				Send.ItemUpdate(attacker, attacker.RightHand);
 			}
 
-			System.Threading.Timer t2 = null;
-			t2 = new System.Threading.Timer(_ =>
+			Task.Delay(totalDelay).ContinueWith(__ =>
 			{
 				Send.UseMotion(attacker, 131, 4, false, false); // Bullet Storm ending motion
 
@@ -341,9 +338,7 @@ namespace Aura.Channel.Skills.Guns
 				ChangeStance|UseItem|Attack
 				----------------------------- */
 				attacker.Unlock(Locks.ChanceStance | Locks.UseItem | Locks.Attack);
-
-				GC.KeepAlive(t2);
-			}, null, totalDelay, System.Threading.Timeout.Infinite);
+			});
 
 			this.Complete(attacker, skill, packet);
 		}

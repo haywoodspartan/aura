@@ -101,16 +101,14 @@ namespace Aura.Channel.Skills.Guns
 				duration += 5;
 
 			// Deactivate condition after skill duration
-			Timer t = null;
-			t = new Timer(_ =>
+			Task.Delay(duration).ContinueWith(_ =>
 			{
-				GC.KeepAlive(t);
 				if (creature.Conditions.Has(ConditionsD.WayOfTheGun))
 				{
 					creature.Conditions.Deactivate(ConditionsD.WayOfTheGun);
 					Send.MotionCancel2(creature, 0);
 				}
-			}, null, duration, Timeout.Infinite);
+			});
 
 			// Train
 			skill.Train(1); // Use the skill

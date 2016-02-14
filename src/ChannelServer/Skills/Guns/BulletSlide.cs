@@ -97,11 +97,6 @@ namespace Aura.Channel.Skills.Guns
 			if (bulletCount < skill.RankData.Var1 && !creature.Conditions.Has(ConditionsD.WayOfTheGun))
 				Send.SkillPrepareSilentCancel(creature, skill.Info.Id);
 
-			/* Locks -----------------------
-			PickUpAndDrop|TalkToNpc
-			----------------------------- */
-			creature.Lock(Locks.PickUpAndDrop | Locks.TalkToNpc);
-
 			Send.SkillPrepare(creature, skill.Info.Id, skill.GetCastTime());
 
 			return true;
@@ -116,11 +111,6 @@ namespace Aura.Channel.Skills.Guns
 		/// <returns></returns>
 		public bool Ready(Creature creature, Skill skill, Packet packet)
 		{
-			/* Locks -----------------------
-			PickUpAndDrop|TalkToNpc
-			----------------------------- */
-			creature.Lock(Locks.PickUpAndDrop | Locks.TalkToNpc);
-
 			skill.Stacks = 1;
 			Send.SkillReady(creature, skill.Info.Id);
 
@@ -135,11 +125,6 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="packet"></param>
 		public void Use(Creature attacker, Skill skill, Packet packet)
 		{
-			/* Locks -----------------------
-			Walk|Run
-			----------------------------- */
-			attacker.Lock(Locks.Walk | Locks.Run);
-
 			// Get Target
 			var targetEntityId = packet.GetLong();
 			var target = attacker.Region.GetCreature(targetEntityId);
@@ -272,11 +257,6 @@ namespace Aura.Channel.Skills.Guns
 			skill.Stacks = 0;
 
 			Send.SkillUse(attacker, skill.Info.Id, targetEntityId, 0, 1);
-
-			/* Unlocks ---------------------
-			Attack
-			----------------------------- */
-			attacker.Unlock(Locks.Attack);
 		}
 
 		/// <summary>
@@ -289,9 +269,6 @@ namespace Aura.Channel.Skills.Guns
 		{
 			Send.Effect(creature, 333, (byte)3);
 			Send.SkillComplete(creature, skill.Info.Id);
-
-			// Remove Leftover Locks
-			creature.Unlock(Locks.PickUpAndDrop | Locks.TalkToNpc | Locks.Walk | Locks.Run);
 		}
 
 		/// <summary>
@@ -301,8 +278,6 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="skill"></param>
 		public void Cancel(Creature creature, Skill skill)
 		{
-			// Remove Leftover Locks
-			creature.Unlock(Locks.PickUpAndDrop | Locks.TalkToNpc | Locks.Walk | Locks.Run);
 		}
 
 		/// <summary>

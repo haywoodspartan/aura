@@ -100,11 +100,6 @@ namespace Aura.Channel.Skills.Guns
 
 			Send.UseMotion(creature, 131, 2, false, false);
 
-			/* Locks -----------------------
-			Walk|Run|PickUpAndDrop|TalkToNpc
-			----------------------------- */
-			creature.Lock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc);
-
 			Send.SkillPrepare(creature, skill.Info.Id, skill.GetCastTime());
 
 			return true;
@@ -119,11 +114,6 @@ namespace Aura.Channel.Skills.Guns
 		/// <returns></returns>
 		public bool Ready(Creature creature, Skill skill, Packet packet)
 		{
-			/* Locks -----------------------
-			ChangeStance|Walk|Run|PickUpAndDrop|TalkToNpc
-			----------------------------- */
-			creature.Lock(Locks.ChanceStance | Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc);
-
 			skill.Stacks = 1;
 			Send.SkillReady(creature, skill.Info.Id);
 
@@ -138,11 +128,6 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="packet"></param>
 		public void Use(Creature attacker, Skill skill, Packet packet)
 		{
-			/* Locks -----------------------
-			Walk|Run
-			----------------------------- */
-			attacker.Lock(Locks.Walk | Locks.Run);
-
 			var targetAreaId = packet.GetLong();
 			var targetAreaLoc = new Location(targetAreaId);
 			var targetAreaPos = new Position(targetAreaLoc.X, targetAreaLoc.Y);
@@ -221,6 +206,20 @@ namespace Aura.Channel.Skills.Guns
 
 			Send.UseMotion(attacker, 131, 3, true, false); // Bullet Storm shooting motion
 
+			var rnd = RandomProvider.Get();
+
+			// Check crit
+			var crit = false;
+			var critSkill = attacker.Skills.Get(SkillId.CriticalHit);
+			if (critSkill != null && critSkill.Info.Rank > SkillRank.Novice)
+			{
+				var dgm = attacker.Skills.Get(SkillId.DualGunMastery);
+				var extraCritChance = (dgm == null ? 0 : dgm.RankData.Var6);
+				var critChance = Math2.Clamp(0, 30, attacker.GetTotalCritChance(0) + extraCritChance);
+				if (rnd.NextDouble() * 100 < critChance)
+					crit = true;
+			}
+
 			// Prepare target actions
 			foreach (var target in targets)
 			{
@@ -253,10 +252,13 @@ namespace Aura.Channel.Skills.Guns
 				}
 
 				// Critical Hit
-				var dgm = attacker.Skills.Get(SkillId.DualGunMastery);
-				var extraCritChance = (dgm == null ? 0 : dgm.RankData.Var6);
-				var critchance = attacker.GetRightCritChance(target.Protection) + extraCritChance;
-				CriticalHit.Handle(attacker, critchance, ref damage, tAction);
+				if (crit)
+				{
+					var bonus = critSkill.RankData.Var1 / 100f;
+					damage = damage + (damage * bonus);
+
+					tAction.Set(TargetOptions.Critical);
+				}
 
 				// Defense and Prot
 				SkillHelper.HandleDefenseProtection(target, ref damage);
@@ -333,11 +335,6 @@ namespace Aura.Channel.Skills.Guns
 			Task.Delay(totalDelay).ContinueWith(__ =>
 			{
 				Send.UseMotion(attacker, 131, 4, false, false); // Bullet Storm ending motion
-
-				/* Unlocks ---------------------
-				ChangeStance|UseItem|Attack
-				----------------------------- */
-				attacker.Unlock(Locks.ChanceStance | Locks.UseItem | Locks.Attack);
 			});
 
 			this.Complete(attacker, skill, packet);
@@ -353,9 +350,6 @@ namespace Aura.Channel.Skills.Guns
 		{
 			Send.SkillComplete(creature, skill.Info.Id);
 			creature.Skills.ActiveSkill = null;
-
-			// Remove Leftover Locks
-			creature.Unlock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc);
 		}
 
 		/// <summary>
@@ -366,9 +360,6 @@ namespace Aura.Channel.Skills.Guns
 		public void Cancel(Creature creature, Skill skill)
 		{
 			Send.MotionCancel2(creature, 0);
-
-			// Remove Leftover Locks
-			creature.Unlock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc | Locks.ChanceStance);
 		}
 
 		/// <summary>

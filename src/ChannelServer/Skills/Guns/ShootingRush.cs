@@ -262,6 +262,9 @@ namespace Aura.Channel.Skills.Guns
 				// Mana Shield
 				ManaShield.Handle(target, ref damage, tAction);
 
+				// Natural Shield
+				NaturalShield.Handle(attacker, target, ref damage, tAction);
+
 				// Apply Damage
 				target.TakeDamage(tAction.Damage = damage, attacker);
 

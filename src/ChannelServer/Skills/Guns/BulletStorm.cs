@@ -145,6 +145,7 @@ namespace Aura.Channel.Skills.Guns
 			var newTargetPosition = attackerPos.GetRelative(targetAreaPos, (int)(distance - attackerToTargetPointDist)); // Get position for use of true rectangle distance
 
 			attacker.StopMove(); // Unnecessary at the moment, but who knows.
+			attacker.Lock(Locks.Walk | Locks.Run);
 
 			// Center Points Calculation
 			var attackerPoint = new Point(attackerPos.X, attackerPos.Y);
@@ -266,6 +267,9 @@ namespace Aura.Channel.Skills.Guns
 				// Defense (Skill)
 				Defense.Handle(aAction, tAction, ref damage);
 
+				// Natural Shield
+				NaturalShield.Handle(attacker, target, ref damage, tAction);
+
 				// Mana Shield
 				ManaShield.Handle(target, ref damage, tAction);
 
@@ -350,6 +354,9 @@ namespace Aura.Channel.Skills.Guns
 		{
 			Send.SkillComplete(creature, skill.Info.Id);
 			creature.Skills.ActiveSkill = null;
+
+			// Unlock Leftover Locks
+			creature.Unlock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc);
 		}
 
 		/// <summary>

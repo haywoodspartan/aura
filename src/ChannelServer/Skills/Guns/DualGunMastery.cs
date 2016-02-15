@@ -147,21 +147,38 @@ namespace Aura.Channel.Skills.Guns
 				// Damage
 				var damage = attacker.GetRndDualGunDamage();
 
+				var rnd = RandomProvider.Get();
+
+				// Check crit - Way of The Gun applies only to this skill
+				var crit = false;
+				var critSkill = attacker.Skills.Get(SkillId.CriticalHit);
+				if (attacker.Conditions.Has(ConditionsD.WayOfTheGun)) crit = true;
+				else if (critSkill != null && critSkill.Info.Rank > SkillRank.Novice)
+				{
+					var dgm = attacker.Skills.Get(SkillId.DualGunMastery);
+					var extraCritChance = (dgm == null ? 0 : dgm.RankData.Var6);
+					var critChance = Math2.Clamp(0, 30, attacker.GetTotalCritChance(target.Protection) + extraCritChance);
+					if (rnd.NextDouble() * 100 < critChance)
+						crit = true;
+				}
+
 				// Critical Hit
-				var critChance = attacker.GetRightCritChance(target.Protection);
-				critChance += skill.RankData.Var6; // Not sure how to add Var 6 yet...
+				if (crit)
+				{
+					var bonus = critSkill.RankData.Var1 / 100f;
+					damage = damage + (damage * bonus);
 
-				// Way Of The Gun
-				if (attacker.Conditions.Has(ConditionsD.WayOfTheGun))
-					critChance = 100;
-
-				CriticalHit.Handle(attacker, critChance, ref damage, tAction);
+					tAction.Set(TargetOptions.Critical);
+				}
 
 				// Subtract damage in respect to target's def/prot
 				SkillHelper.HandleDefenseProtection(target, ref damage);
 
 				// Defense
 				Defense.Handle(aAction, tAction, ref damage);
+
+				// Natural Shield
+				NaturalShield.Handle(attacker, target, ref damage, tAction);
 
 				// Mana Shield
 				ManaShield.Handle(target, ref damage, tAction);

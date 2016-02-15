@@ -236,6 +236,9 @@ namespace Aura.Channel.Skills.Guns
 			// Defense
 			Defense.Handle(aAction, tAction, ref damage);
 
+			// Natural Shield
+			NaturalShield.Handle(attacker, target, ref damage, tAction);
+
 			// Mana Shield
 			ManaShield.Handle(target, ref damage, tAction);
 
@@ -313,9 +316,11 @@ namespace Aura.Channel.Skills.Guns
 		/// <param name="packet"></param>
 		public void Complete(Creature creature, Skill skill, Packet packet)
 		{
-			creature.Unlock(Locks.Walk | Locks.Run);
 			Send.SkillComplete(creature, skill.Info.Id);
 			creature.Skills.ActiveSkill = null;
+
+			// Unlock Leftover Locks
+			creature.Unlock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc | Locks.ChanceStance | Locks.Attack);
 		}
 
 		/// <summary>

@@ -176,6 +176,9 @@ namespace Aura.Channel.Skills.Guns
 			// Defense
 			Defense.Handle(aAction, tAction, ref damage);
 
+			// Heavy Stander
+			HeavyStander.Handle(attacker, target, ref damage, tAction);
+
 			// Mana Shield
 			ManaShield.Handle(target, ref damage, tAction);
 

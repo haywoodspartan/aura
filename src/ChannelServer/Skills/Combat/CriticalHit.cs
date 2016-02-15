@@ -70,12 +70,8 @@ namespace Aura.Channel.Skills.Combat
 				return;
 
 			// Cap crit chance at 30%
-			if (attacker.Conditions.Has(ConditionsD.WayOfTheGun))
-				goto SkipClamp;
-			else
-				critChance = Math2.Clamp(0, 30, critChance);
+			critChance = Math2.Clamp(0, 30, critChance);
 
-			SkipClamp:
 			// Cancel if crit doesn't happen
 			if (RandomProvider.Get().NextDouble() * 100 >= critChance)
 				return;

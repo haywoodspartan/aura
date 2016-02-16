@@ -173,9 +173,6 @@ namespace Aura.Channel.Skills.Guns
 			// Defense and Prot
 			SkillHelper.HandleDefenseProtection(target, ref damage);
 
-			// Defense
-			Defense.Handle(aAction, tAction, ref damage);
-
 			// Heavy Stander
 			HeavyStander.Handle(attacker, target, ref damage, tAction);
 

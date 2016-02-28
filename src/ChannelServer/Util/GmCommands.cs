@@ -98,6 +98,7 @@ namespace Aura.Channel.Util
 			Add(99, -1, "reloadscripts", "", HandleReloadScripts);
 			Add(99, -1, "reloadconf", "", HandleReloadConf);
 			Add(99, 99, "closenpc", "", HandleCloseNpc);
+			Add(99, 99, "shutdown", "<seconds>", HandleShutdown);
 			Add(99, 99, "nosave", "", HandleNoSave);
 			Add(99, 99, "dbgregion", "[scale=20] [entityIds]", HandleDebugRegion);
 
@@ -1304,7 +1305,7 @@ namespace Aura.Channel.Util
 			if (args.Count < 2)
 				return CommandResult.InvalidArgument;
 
-			var notice = sender.Name + ": " + message.Substring(message.IndexOf(" "));
+			var notice = target.Name + ": " + message.Substring(message.IndexOf(" "));
 
 			Send.Internal_Broadcast(notice);
 
@@ -1327,12 +1328,13 @@ namespace Aura.Channel.Util
 			var listOfSkills = new SkillId[]
 			{
 				SkillId.Counterattack, SkillId.CriticalHit, SkillId.Defense, SkillId.FinalHit, SkillId.MagnumShot, SkillId.RangedAttack,
-				SkillId.Smash, SkillId.Windmill,
+				SkillId.Smash, SkillId.Windmill, SkillId.SupportShot, SkillId.ArrowRevolver2,
 
 				SkillId.Campfire, SkillId.FirstAid, SkillId.Fishing, SkillId.Handicraft, SkillId.Herbalism, SkillId.PotionMaking,
 				SkillId.ProductionMastery, SkillId.Refining, SkillId.Rest, SkillId.Tailoring, SkillId.Weaving,
 
 				SkillId.Firebolt, SkillId.Healing, SkillId.Icebolt, SkillId.Lightningbolt, SkillId.ManaShield, SkillId.Meditation, SkillId.SilentMove,
+				SkillId.Enchant, SkillId.MagicMastery,
 
 				SkillId.Composing, SkillId.PlayingInstrument, SkillId.Song,
 			};
@@ -1907,6 +1909,29 @@ namespace Aura.Channel.Util
 			Send.ServerMessage(sender, Localization.Get("Pon modificated: {0} -> {1}."), oldVal, target.Client.Account.Points);
 			if (sender != target)
 				Send.ServerMessage(target, Localization.Get("Your Pon have been modificated by {2}: {0} -> {1}."), oldVal, newVal, sender.Name);
+
+			return CommandResult.Okay;
+		}
+
+		private CommandResult HandleShutdown(ChannelClient client, Creature sender, Creature target, string message, IList<string> args)
+		{
+			if (args.Count < 2)
+				return CommandResult.InvalidArgument;
+
+			if (ChannelServer.Instance.ShuttingDown)
+			{
+				Send.MsgBox(sender, Localization.Get("Server is already being shut down."));
+				return CommandResult.Okay;
+			}
+
+			// Get time
+			int time;
+			if (!int.TryParse(args[1], out time))
+				return CommandResult.InvalidArgument;
+
+			time = Math2.Clamp(60, 1800, time);
+
+			ChannelServer.Instance.Shutdown(time);
 
 			return CommandResult.Okay;
 		}

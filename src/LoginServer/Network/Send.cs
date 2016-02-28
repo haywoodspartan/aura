@@ -517,12 +517,12 @@ namespace Aura.Login.Network
 			packet.PutByte(1);
 
 			// Always visible?
-			packet.PutByte(false);          // Inventory Plus Kit
-			packet.PutLong(0);              // DateTime
-			packet.PutByte(false);          // Mabinogi Premium Pack
-			packet.PutLong(0);
-			packet.PutByte(false);          // Mabinogi VIP
-			packet.PutLong(0);
+			packet.PutByte(account.PremiumServices.HasInventoryPlusService);
+			packet.PutLong(account.PremiumServices.InventoryPlusExpiration);
+			packet.PutByte(account.PremiumServices.HasPremiumService);
+			packet.PutLong(account.PremiumServices.PremiumExpiration);
+			packet.PutByte(account.PremiumServices.HasVipService);
+			packet.PutLong(account.PremiumServices.VipExpiration);
 
 			// [170402, TW170300] New premium thing
 			{
@@ -619,6 +619,17 @@ namespace Aura.Login.Network
 			}
 
 			packet.PutByte(0);
+		}
+
+		/// <summary>
+		/// Sends shutdown request to all channels.
+		/// </summary>
+		/// <param name="time">Seconds until shutdown.</param>
+		public static void ChannelShutdown(int time)
+		{
+			var packet = new Packet(Op.Internal.ChannelShutdown, MabiId.Channel);
+			packet.PutInt(time);
+			LoginServer.Instance.BroadcastChannels(packet);
 		}
 	}
 }

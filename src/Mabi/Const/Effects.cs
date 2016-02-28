@@ -239,6 +239,12 @@ namespace Aura.Mabi.Const
 		/// Takes the same targetEntityId 4 times with a specific time frame for each bullet.
 		/// </summary>
 		public static readonly int BulletSlideTrail = 339;
+
+		/// Effects for Lightning Rod.
+		/// Different bytes cover the skill's spectrum of effects.
+		/// int:0|2|3 (cancel | charging effect | shooting effect [position.x, position.y])
+		/// </summary>
+		public static readonly int LightningRod = 418;
 	}
 
 	public enum SpawnEffect : byte

@@ -30,6 +30,14 @@ namespace Aura.Channel.Network.Handlers
 		[PacketHandler(Op.ChannelLogin)]
 		public void ChannelLogin(ChannelClient client, Packet packet)
 		{
+			// Refuse connection if the ChannelServer is currently shutting down
+			if (ChannelServer.Instance.ShuttingDown)
+			{
+				Log.Info("Refused connection because the server is currently shutting down.");
+				client.Kill();
+				return;
+			}
+
 			var accountId = packet.GetString();
 			// [160XXX] Double account name
 			{
@@ -56,6 +64,9 @@ namespace Aura.Channel.Network.Handlers
 
 			// Check character
 			var character = account.GetCharacterOrPetSafe(characterId);
+
+			// Free premium
+			account.PremiumServices.EvaluateFreeServices(ChannelServer.Instance.Conf.Premium);
 
 			client.Account = account;
 			client.Controlling = character;

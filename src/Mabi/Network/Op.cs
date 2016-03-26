@@ -77,7 +77,7 @@ namespace Aura.Mabi.Network
 
 		// PonsUpdate changed by +1 some time.
 
-		public const int PonsUpdate = 0x4E90;
+		public const int PointsUpdate = 0x4E90;
 
 		public const int ChannelCharacterInfoRequest = 0x5208;
 		public const int ChannelCharacterInfoRequestR = 0x5209;
@@ -589,8 +589,9 @@ namespace Aura.Mabi.Network
 		// [190200, NA221 (2016-02-17)] Added
 		// DcUnk, purpose unknown, requires answer on disconnect,
 		// or the player gets stuck.
-		public const int DcUnk = 0xAC1D;
-		public const int DcUnkR = 0xAC1E;
+		// [190200, NA223 (2016-03-17)] Shifted by 6, from AC1D to AC23.
+		public const int DcUnk = 0xAC23;
+		public const int DcUnkR = 0xAC24;
 
 		public const int NpcTalk = 0x13882;
 		public const int NpcTalkSelect = 0x13883;

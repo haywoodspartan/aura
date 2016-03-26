@@ -22,14 +22,11 @@ namespace Aura.Channel.Scripting.Scripts
 	/// the client shows that, instead of the gold price, and assumes that
 	/// you're paying with ducats.
 	/// 
-	/// TODO: Find the best way to add ducat items. Mixing the two should
-	/// be possible I suppose. AddItem/AddDucatItem?
-	/// 
 	/// Selling items always uses gold (option to sell for ducats?).
 	/// 
 	/// Aside from Ducats and Gold there are two more currencies,
 	/// Stars and Pons. The client will show the buy currency based on
-	/// the values set, Duncan > Stars > Gold.
+	/// the values set, Ducats > Stars > Gold.
 	/// Pons overweights everything, but it's displayed alongside
 	/// other prices if they aren't 0.
 	/// </remarks>
@@ -212,19 +209,50 @@ namespace Aura.Channel.Scripting.Scripts
 		/// <param name="price">Uses db value if lower than 0 (default).</param>
 		public void Add(string tabTitle, Item item, int price = -1)
 		{
-			NpcShopTab tab;
-			lock (_tabs)
-				_tabs.TryGetValue(tabTitle, out tab);
-			if (tab == null)
-				tab = this.Add(tabTitle);
+			var tab = this.GetOrCreateTab(tabTitle);
 
-			if (price >= 0)
+			// Use data price if none was set
+			if (price == -1)
+				price = item.Data.Price;
+
+			// Set the price we need
+			switch (tab.PaymentMethod)
 			{
-				item.OptionInfo.Price = price;
-				item.OptionInfo.SellingPrice = (item.Info.Id != 2000 ? (int)(price * 0.1f) : 1000);
+				case PaymentMethod.Gold: item.SetGoldPrice(price); break;
+				case PaymentMethod.Stars: item.OptionInfo.StarPrice = price; break;
+				case PaymentMethod.Ducats: item.OptionInfo.DucatPrice = price; break;
+				case PaymentMethod.Points: item.OptionInfo.PointPrice = price; break;
 			}
 
 			tab.Add(item);
+		}
+
+		/// <summary>
+		/// Sets the payment method for the given tab.
+		/// </summary>
+		/// <param name="tabTitle"></param>
+		/// <param name="method"></param>
+		public void SetPaymentMethod(string tabTitle, PaymentMethod method)
+		{
+			var tab = this.GetOrCreateTab(tabTitle);
+			tab.PaymentMethod = method;
+		}
+
+		/// <summary>
+		/// Returns the given tab, after creating if necessary.
+		/// </summary>
+		/// <param name="tabTitle"></param>
+		/// <returns></returns>
+		protected NpcShopTab GetOrCreateTab(string tabTitle)
+		{
+			NpcShopTab tab;
+			lock (_tabs)
+				_tabs.TryGetValue(tabTitle, out tab);
+
+			if (tab == null)
+				tab = this.Add(tabTitle);
+
+			return tab;
 		}
 
 		/// <summary>
@@ -355,6 +383,11 @@ namespace Aura.Channel.Scripting.Scripts
 		public bool RandomizeColorsEnabled { get; set; }
 
 		/// <summary>
+		/// Gets or sets what items in this tab are paid for with.
+		/// </summary>
+		public PaymentMethod PaymentMethod { get; set; }
+
+		/// <summary>
 		/// Creatures new NpcShopTab
 		/// </summary>
 		/// <param name="title">Tab title display in-game.</param>
@@ -430,5 +463,13 @@ namespace Aura.Channel.Scripting.Scripts
 				}
 			}
 		}
+	}
+
+	public enum PaymentMethod
+	{
+		Gold,
+		Stars,
+		Ducats,
+		Points,
 	}
 }

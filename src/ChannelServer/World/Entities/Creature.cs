@@ -177,6 +177,24 @@ namespace Aura.Channel.World.Entities
 		/// </summary>
 		public bool IsDev { get { return (this.Titles.SelectedTitle == TitleId.devCAT); } }
 
+		/// <summary>
+		/// Gets or sets the amount of "cash" points on the creature's
+		/// account and updates the client accordingly.
+		/// </summary>
+		public int Points
+		{
+			get { return (this.Client.Account != null ? this.Client.Account.Points : 0); }
+			set
+			{
+				if (this.Client.Account == null)
+					return;
+
+				var points = Math2.Clamp(0, int.MaxValue, value);
+				this.Client.Account.Points = points;
+				Send.PointsUpdate(this, points);
+			}
+		}
+
 		// Look
 		// ------------------------------------------------------------------
 
@@ -224,6 +242,12 @@ namespace Aura.Channel.World.Entities
 		public Item LeftHand { get { return this.Inventory.LeftHand; } }
 		public Item Magazine { get { return this.Inventory.Magazine; } }
 		public bool HandsFree { get { return (this.RightHand == null && this.LeftHand == null && this.Magazine == null); } }
+
+		/// <summary>
+		/// Returns whether the creature is wielding main weapons on both hands.
+		/// Shields and similar items are not considered main weapons.
+		/// </summary>
+		public bool IsDualWielding { get { return this.RightHand != null && this.LeftHand != null && this.LeftHand.Data.WeaponType != 0; } }
 
 		// Movement
 		// ------------------------------------------------------------------
@@ -925,6 +949,17 @@ namespace Aura.Channel.World.Entities
 		/// </summary>
 		public float StaminaRegenMultiplicator { get { return (this.Stamina < this.StaminaHunger ? 1f : 0.2f); } }
 
+		/// <summary>
+		/// Returns the rigth hand weapon stamina usage, or bare hand stamina usage if no such weapon.
+		/// </summary>
+		public float RightHandStaminaUsage { get { return this.RightHand != null ? this.RightHand.Data.StaminaUsage : BareHandStaminaUsage; } }
+
+		/// <summary>
+		/// Returns the left hand weapon stamina usage if the creature is dual wielding, 0 otherwise.
+		/// <seealso cref="Creature.IsDualWielding"/>
+		/// </summary>
+		public float LeftHandStaminaUsage { get { return this.IsDualWielding ? this.LeftHand.Data.StaminaUsage : 0; } }
+
 		// Events
 		// ------------------------------------------------------------------
 
@@ -944,9 +979,6 @@ namespace Aura.Channel.World.Entities
 		/// - The level before the level up process.
 		/// </remarks>
 		public event Action<Creature, int> LeveledUp;
-
-		// ------------------------------------------------------------------
-
 
 		// Parties
 		// ------------------------------------------------------------------
@@ -1524,8 +1556,6 @@ namespace Aura.Channel.World.Entities
 		/// Returns the max distance the creature can have to attack.
 		/// </summary>
 		/// <remarks>
-		/// http://dev.mabinoger.com/forum/index.php/topic/767-attack-range/
-		/// 
 		/// This might not be the 100% accurate formula, but it should be
 		/// good enough to work with for now.
 		/// </remarks>

@@ -1,8 +1,8 @@
 Aura
 ==============================
 
-Aura is an open-source server emulator written in C#. It's solely being
-developed for educational purposes, learning about programming, MMORPGs,
+Aura is an open-source MMORPG server software for the North American client of Mabinogi.
+It's solely being developed for educational purposes, learning about programming, MMORPGs,
 maintaining huge projects, working with other people, and improving knowledge.
 It's not about playing a game or competing with any services provided by
 Nexon or its partners, and we don't endorse such actions.
@@ -20,13 +20,13 @@ compatibility to all other versions was dropped on
 Requirements
 ------------------------------
 To *run* Aura, you need
-* .NET 4.5 (Mono 3.0+)
+* .NET 4.5 (Mono 3.2.7 or above)
 * MySQL 5 compatible database
 
 To *compile* Aura, you need
 * C# 5 compiler, such as:
   * [Visual Studio](http://www.visualstudio.com/en-us/products/visual-studio-express-vs.aspx) (2012 or later)
-  * [Monodevelop](http://monodevelop.com/) (With mono version 3 or greater)
+  * [Monodevelop](http://monodevelop.com/) (With Mono version 3.2.7 or greater)
   * [SharpDevelop](http://www.icsharpcode.net/OpenSource/SD/) (Version 4.4 or greater)
 
 Installation
@@ -66,8 +66,7 @@ Alternatively you can make "casual" releases on the forum, which developers migh
 as research or as a base to implement the features into the official source.
 
 #### Coding conventions
-* Base: [MS Naming Guidelines](http://msdn.microsoft.com/en-us/library/xzf533w0%28v=vs.71%29.aspx),
-        [MS C# Coding Conventions](http://msdn.microsoft.com/en-us/library/ff926074.aspx)
+* Base: [MS Naming Guidelines](http://msdn.microsoft.com/en-us/library/xzf533w0%28v=vs.71%29.aspx), [MS C# Coding Conventions](http://msdn.microsoft.com/en-us/library/ff926074.aspx)
 * Exceptions:
   * Use `_private` for private fields and `this.Foobar` for properties, public fields, and methods.
   * Use tabs, not spaces.
@@ -97,7 +96,7 @@ each other. Make sure you're running the latest version of Aura and *NA*.
 
 If you did update both and are still running into problems, an official update
 probably broke compatibility. Wait a few hours for us to update Aura
-if NA has just been happened, or create an issue on [GitHub](https://github.com/aura-project/aura/issues).
+if NA was just updated, or create an issue on [GitHub](https://github.com/aura-project/aura/issues).
 
 Links
 ------------------------------

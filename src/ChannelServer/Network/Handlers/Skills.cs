@@ -109,11 +109,39 @@ namespace Aura.Channel.Network.Handlers
 				return;
 			}
 
-			// TODO: Move mana/stm checks here?
+			// Check Mana
+			if (creature.Mana < skill.RankData.ManaCost)
+			{
+				Send.SystemMessage(creature, Localization.Get("Insufficient Mana"));
+				Send.SkillStartSilentCancel(creature, skill.Info.Id);
+				return;
+			}
+
+			// Check Stamina
+			if (creature.Stamina < skill.RankData.StaminaCost)
+			{
+				Send.SystemMessage(creature, Localization.Get("Insufficient Stamina"));
+				Send.SkillStartSilentCancel(creature, skill.Info.Id);
+				return;
+			}
 
 			try
 			{
 				handler.Start(creature, skill, packet);
+
+				// Normal Mana/Stamina reduction
+				if (skill.RankData.ManaPrepare != 0)
+					creature.Regens.Add(Stat.Mana, skill.RankData.ManaPrepare, creature.ManaMax, 1000);
+				if (skill.RankData.StaminaPrepare != 0)
+					creature.Regens.Add(Stat.Stamina, skill.RankData.StaminaPrepare, creature.StaminaMax, 1000);
+
+				// Constant Mana/Stamina reduction, for the duration
+				// of the skill. Example: Mana Shield
+				if (skill.RankData.ManaActive != 0)
+					creature.Regens.Add("SkillInUse" + skill.Info.Id, Stat.Mana, skill.RankData.ManaActive, creature.ManaMax);
+				if (skill.RankData.StaminaActive != 0)
+					creature.Regens.Add("SkillInUse" + skill.Info.Id, Stat.Stamina, skill.RankData.StaminaActive, creature.StaminaMax);
+
 				ChannelServer.Instance.Events.OnPlayerUsedSkill(creature, skill);
 			}
 			catch (NotImplementedException)
@@ -168,6 +196,8 @@ namespace Aura.Channel.Network.Handlers
 				Send.ServerMessage(creature, Localization.Get("This skill isn't implemented completely yet."));
 				Send.SkillStopSilentCancel(creature, skillId);
 			}
+
+			creature.Regens.Remove("SkillInUse" + skill.Info.Id);
 		}
 
 		/// <summary>
@@ -251,16 +281,11 @@ namespace Aura.Channel.Network.Handlers
 					return;
 				}
 
-				// Reduce Mana/Stamina
-				// TODO: Use regens, for shiny gradually depleting bars
-				if (skill.RankData.ManaCost != 0 || skill.RankData.StaminaCost != 0)
-				{
-					if (skill.Info.Id != SkillId.LightningRod) // Lightning Rod is excluded; mana is subtracted on Use
-						creature.Mana -= skill.RankData.ManaCost;
-
-					creature.Stamina -= skill.RankData.StaminaCost;
-					Send.StatUpdate(creature, StatUpdateType.Private, Stat.Mana, Stat.Stamina);
-				}
+				// Normal Mana/Stamina reduction
+				if (skill.RankData.ManaPrepare != 0)
+					creature.Regens.Add(Stat.Mana, skill.RankData.ManaPrepare, creature.ManaMax, 1000);
+				if (skill.RankData.StaminaPrepare != 0)
+					creature.Regens.Add(Stat.Stamina, skill.RankData.StaminaPrepare, creature.StaminaMax, 1000);
 
 				// Set active skill
 				creature.Skills.ActiveSkill = skill;
@@ -340,6 +365,8 @@ namespace Aura.Channel.Network.Handlers
 					return;
 				}
 
+				// Constant Mana/Stamina reduction, for the duration
+				// of Ready. Example: Counterattack
 				if (skill.RankData.ManaWait != 0)
 					creature.Regens.Add("ActiveSkillWait", Stat.Mana, skill.RankData.ManaWait, creature.ManaMax);
 				if (skill.RankData.StaminaWait != 0)
@@ -383,7 +410,7 @@ namespace Aura.Channel.Network.Handlers
 				Send.SkillUseSilentCancel(creature);
 				return;
 			}
- 
+
 			// Lightning Rod Use Check:
 			// Lightning rod will send Use any time its hotkey is released.
 			// This will lock the client if the skill is canceled for any reason (such as insufficient mana),
@@ -413,6 +440,12 @@ namespace Aura.Channel.Network.Handlers
 				creature.Unlock(skill.Data.UseUnlock);
 
 				handler.Use(creature, skill, packet);
+
+				// Mana/Stamina reduction on usage. Example: Lightning Rod
+				if (skill.RankData.ManaActive != 0)
+					creature.Regens.Add(Stat.Mana, skill.RankData.ManaActive, creature.ManaMax, 1000);
+				if (skill.RankData.StaminaActive != 0)
+					creature.Regens.Add(Stat.Stamina, skill.RankData.StaminaActive, creature.StaminaMax, 1000);
 
 				// If stacks aren't 0 the skill wasn't successfully used yet.
 				if (skill.Stacks == 0)

@@ -115,22 +115,25 @@ namespace Aura.Channel.Skills.Guns
 
 		public CombatSkillResult Use(Creature attacker, Skill skill, long targetEntityId)
 		{
-			// Get target
+			// Get Target
 			var target = attacker.Region.GetCreature(targetEntityId);
 
-			// Check target
-			if (target == null)
+			// Check Target + Collisions
+			if (target == null || attacker.Region.Collisions.Any(attacker.GetPosition(), target.GetPosition()))
 				return CombatSkillResult.InvalidTarget;
 
 			var targetPos = target.GetPosition();
+
+			/*
 			var range = attacker.AttackRangeFor(target) + 50;
 
-			// Check range
+			// Check Range
 			if (!attacker.GetPosition().InRange(targetPos, range))
 			{
 				Send.Notice(attacker, Localization.Get("You are too far away."));
 				return CombatSkillResult.OutOfRange;
 			}
+			*/
 
 			attacker.StopMove();
 			target.StopMove();

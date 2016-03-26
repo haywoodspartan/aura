@@ -130,8 +130,8 @@ namespace Aura.Channel.Skills.Guns
 			var targetEntityId = packet.GetLong();
 			var target = attacker.Region.GetCreature(targetEntityId);
 
-			// Check Target
-			if (target == null || target.IsDead)
+			// Check Target + Collisions
+			if (target == null || target.IsDead || attacker.Region.Collisions.Any(attacker.GetPosition(), target.GetPosition()))
 			{
 				Send.Notice(attacker, Localization.Get("Invalid Target"));
 				Send.SkillUseSilentCancel(attacker);

@@ -126,13 +126,12 @@ namespace Aura.Channel.Skills.Guns
 			var targetAreaLoc = new Location(targetAreaId);
 			var targetAreaPos = new Position(targetAreaLoc.X, targetAreaLoc.Y);
 
+			attacker.StopMove();
 			var attackerPos = attacker.GetPosition();
 
 			// Distance (Length) & Radius (Width)
 			var distance = skill.RankData.Var6;
 			var radius = skill.RankData.Var5;
-
-			attacker.StopMove();
 
 			var relativeDistance = attackerPos.GetDistance(targetAreaPos);
 
@@ -148,6 +147,14 @@ namespace Aura.Channel.Skills.Guns
 			{
 				var extraDistance = relativeDistance - distance;
 				newAttackerPos = attackerPos.GetRelative(targetAreaPos, ((int)extraDistance * -1));
+			}
+
+			// Set new attacker position to nearest spot if there is a collision
+			if (attacker.Region.Collisions.Any(attackerPos, newAttackerPos))
+			{
+				Position intersection;
+				attacker.Region.Collisions.Find(attackerPos, newAttackerPos, out intersection);
+				newAttackerPos = intersection;
 			}
 
 			attacker.TurnTo(newAttackerPos);
@@ -206,7 +213,7 @@ namespace Aura.Channel.Skills.Guns
 			var bulletDist = 0;
 
 			// Get targets in descending order of distance for the effect packet
-			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).Where(x => attacker.CanTarget(x)).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).ToList();
+			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).Where(x => attacker.CanTarget(x) && !attacker.Region.Collisions.Any(attackerPos, x.GetPosition())).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).ToList();
 
 			// Add Target count to effect packet
 			shootEffect.PutShort((short)targets.Count);

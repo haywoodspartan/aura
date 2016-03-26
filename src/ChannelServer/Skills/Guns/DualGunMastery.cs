@@ -109,9 +109,13 @@ namespace Aura.Channel.Skills.Guns
 				return CombatSkillResult.InvalidTarget;
 
 			var targetPos = target.GetPosition();
-			var range = attacker.AttackRangeFor(target) + attacker.RightHand.Data.Range;
+
+			// Check for Collisions
+			if (attacker.Region.Collisions.Any(attacker.GetPosition(), targetPos))
+				return CombatSkillResult.InvalidTarget;
 
 			// Check Range
+			var range = attacker.AttackRangeFor(target) + attacker.RightHand.Data.Range;
 			if (!attacker.GetPosition().InRange(targetPos, range))
 			{
 				Send.Notice(attacker, Localization.Get("You are too far away."));

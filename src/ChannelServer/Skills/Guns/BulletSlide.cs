@@ -129,8 +129,8 @@ namespace Aura.Channel.Skills.Guns
 			var targetEntityId = packet.GetLong();
 			var target = attacker.Region.GetCreature(targetEntityId);
 
-			// Check Target
-			if (target == null)
+			// Check Target + Collisions
+			if (target == null || attacker.Region.Collisions.Any(attacker.GetPosition(), target.GetPosition()))
 			{
 				Send.Notice(attacker, Localization.Get("Invalid Target"));
 				Send.SkillUseSilentCancel(attacker);
@@ -156,6 +156,15 @@ namespace Aura.Channel.Skills.Guns
 			attacker.TurnTo(targetPos);
 			var attackerPos = attacker.GetPosition();
 			var newAttackerPos = attackerPos.GetRelative(targetPos, SlideDistance);
+
+			// Set new attacker position to nearest spot if there is a collision
+			if (attacker.Region.Collisions.Any(attackerPos, newAttackerPos))
+			{
+				Position intersection;
+				attacker.Region.Collisions.Find(attackerPos, newAttackerPos, out intersection);
+				newAttackerPos = intersection;
+			}
+
 			Send.ForceRunTo(attacker, newAttackerPos);
 
 			// Effects

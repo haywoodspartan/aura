@@ -132,6 +132,9 @@ namespace Aura.Channel.Skills.Guns
 			var targetAreaLoc = new Location(targetAreaId);
 			var targetAreaPos = new Position(targetAreaLoc.X, targetAreaLoc.Y);
 
+			attacker.StopMove(); // Unnecessary at the moment, but who knows.
+			attacker.Lock(Locks.Walk | Locks.Run);
+
 			var attackerPos = attacker.GetPosition();
 
 			Send.SkillUse(attacker, skill.Info.Id, targetAreaId, 0, 1);
@@ -143,9 +146,6 @@ namespace Aura.Channel.Skills.Guns
 
 			var attackerToTargetPointDist = attackerPos.GetDistance(targetAreaPos);
 			var newTargetPosition = attackerPos.GetRelative(targetAreaPos, (int)(distance - attackerToTargetPointDist)); // Get position for use of true rectangle distance
-
-			attacker.StopMove(); // Unnecessary at the moment, but who knows.
-			attacker.Lock(Locks.Walk | Locks.Run);
 
 			// Center Points Calculation
 			var attackerPoint = new Point(attackerPos.X, attackerPos.Y);
@@ -176,7 +176,7 @@ namespace Aura.Channel.Skills.Guns
 			aAction.Stun = AttackerStun;
 
 			// Get targets in descending order for effect packet using bulletDist
-			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).Where(x => attacker.CanTarget(x)).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).Reverse().ToList();
+			var targets = attacker.Region.GetCreaturesInPolygon(p1, p2, p3, p4).Where(x => attacker.CanTarget(x) && !attacker.Region.Collisions.Any(attackerPos, x.GetPosition())).OrderByDescending(x => x.GetPosition().GetDistance(attackerPos)).Reverse().ToList();
 
 			// Filter by max targets [var5] and bullet count
 			var bulletCount = attacker.RightHand.MetaData1.GetShort(BulletCountTag);

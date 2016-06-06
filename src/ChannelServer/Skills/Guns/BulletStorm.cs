@@ -246,7 +246,7 @@ namespace Aura.Channel.Skills.Guns
 				}
 
 				// Master Title
-				if (attacker.Titles.SelectedTitle == 10918)
+				if (attacker.Titles.SelectedTitle == skill.Data.MasterTitle)
 				{
 					if (targets.Count >= 5)
 						damage = (attacker.GetRndDualGunDamage() * ((skill.RankData.Var8 + 15) / 100f)); // +15% Max Damage

@@ -164,7 +164,7 @@ namespace Aura.Channel.Skills.Guns
 			var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f));
 
 			// Master Title
-			if (attacker.Titles.SelectedTitle == 10914)
+			if (attacker.Titles.SelectedTitle == skill.Data.MasterTitle)
 				damage += (damage * (skill.RankData.Var3 / 100f)); // +20% damage
 
 			// Critical Hit

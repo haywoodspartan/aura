@@ -97,7 +97,7 @@ namespace Aura.Channel.Skills.Guns
 			var duration = (int)skill.RankData.Var1;
 
 			// Master Title - +5 seconds
-			if (creature.Titles.SelectedTitle == 10919)
+			if (creature.Titles.SelectedTitle == skill.Data.MasterTitle)
 				duration += 5;
 
 			// Deactivate condition after skill duration

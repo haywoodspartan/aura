@@ -24,7 +24,7 @@ namespace Aura.Channel.Skills.Music
 	/// Prepare starts the playing, complete is sent once it's over.
 	/// </remarks>
 	[Skill(SkillId.PlayingInstrument)]
-	public class PlayingInstrument : IPreparable, ICompletable, ICancelable, IInitiableSkillHandler
+	public class PlayingInstrument : IPreparable, ICompletable, ICancelable, IInitiableSkillHandler, INoPrepareCostSkill
 	{
 		/// <summary>
 		/// Minimum random score id.
@@ -117,7 +117,9 @@ namespace Aura.Channel.Skills.Music
 				this.AfterPlay(creature, skill, quality);
 			});
 
-			creature.Regens.Add("PlayingInstrument", Stat.Stamina, skill.RankData.StaminaActive, creature.StaminaMax);
+			// Use stamina while skill is active if no scroll was used.
+			if (rndScore != 0)
+				creature.Regens.Add("PlayingInstrument", Stat.Stamina, skill.RankData.StaminaActive, creature.StaminaMax);
 
 			return true;
 		}

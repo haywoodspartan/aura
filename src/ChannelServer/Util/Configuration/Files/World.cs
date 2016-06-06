@@ -46,6 +46,8 @@ namespace Aura.Channel.Util.Configuration.Files
 		public bool UncapProficiency { get; protected set; }
 		public bool UnlimitedDyes { get; protected set; }
 		public int DyeDifficulty { get; protected set; }
+		public bool BrokenEggs { get; protected set; }
+		public bool SwitchCancelBolts { get; protected set; }
 
 		public TimeSpan RebirthTime { get; protected set; }
 
@@ -60,6 +62,8 @@ namespace Aura.Channel.Util.Configuration.Files
 		public float PartyExpBonus { get; protected set; }
 		public int PartyMaxSize { get; protected set; }
 		public int PartyQuestMinSize { get; protected set; }
+
+		public float GoldQuestRewardRate { get; protected set; }
 
 		public void Load()
 		{
@@ -102,6 +106,8 @@ namespace Aura.Channel.Util.Configuration.Files
 			this.UncapProficiency = this.GetBool("uncap_proficiency", false);
 			this.UnlimitedDyes = this.GetBool("unlimited_dyes", false);
 			this.DyeDifficulty = Math2.Clamp(1, 5, this.GetInt("dye_difficulty", 5));
+			this.BrokenEggs = this.GetBool("broken_eggs", true);
+			this.SwitchCancelBolts = this.GetBool("switch_cancel_bolts", true);
 
 			this.RebirthTime = TimeSpan.FromDays(this.GetInt("rebirth_time", 6));
 
@@ -116,6 +122,8 @@ namespace Aura.Channel.Util.Configuration.Files
 			this.PartyExpBonus = this.GetFloat("party_exp_bonus", 0);
 			this.PartyMaxSize = Math2.Clamp(1, 99, this.GetInt("party_max_size", 8));
 			this.PartyQuestMinSize = Math2.Clamp(1, this.PartyMaxSize, this.GetInt("party_quest_min_size", 2));
+
+			this.GoldQuestRewardRate = this.GetFloat("gold_quest_reward_rate", 100) / 100.0f;
 		}
 	}
 }

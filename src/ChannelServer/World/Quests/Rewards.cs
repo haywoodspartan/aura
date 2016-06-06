@@ -322,7 +322,7 @@ namespace Aura.Channel.World.Quests
 
 		public QuestRewardAp(short amount)
 		{
-			this.Amount = (short)Math2.Clamp(0, short.MaxValue, amount * ChannelServer.Instance.Conf.World.QuestApRate);
+			this.Amount = amount;
 		}
 
 		public override string ToString()

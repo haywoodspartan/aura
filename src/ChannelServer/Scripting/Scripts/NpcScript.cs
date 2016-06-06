@@ -983,6 +983,17 @@ namespace Aura.Channel.Scripting.Scripts
 		}
 
 		/// <summary>
+		/// Checks if player has the skill on the specified rank.
+		/// </summary>
+		/// <param name="skillId"></param>
+		/// <param name="rank"></param>
+		/// <returns></returns>
+		public bool IsSkill(SkillId skillId, SkillRank rank)
+		{
+			return this.Player.Skills.Is(skillId, rank);
+		}
+
+		/// <summary>
 		/// Gives skill to player if he doesn't have it on that rank yet.
 		/// </summary>
 		/// <param name="skillId"></param>
@@ -1791,7 +1802,7 @@ namespace Aura.Channel.Scripting.Scripts
 						result.Item.MetaData1.SetString("WU", manaUseWU.ToString());
 						break;
 
-					case "ChainCast":
+					case "ChainCasting":
 						// Chain Casting: +4, Magic Attack: +21
 						// EHLV:4:5;MTWR:1:1;OWNER:s:username;WU:s:30201400000015;
 						var chainCastWU = new WUUpgrades(result.Item.MetaData1.GetString("WU"));

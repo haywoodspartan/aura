@@ -38,11 +38,38 @@ public class OnEquipSkillLearnScript : GeneralScript
 		if ((item.HasTag("/tool/blacksmith/")) && !creature.Skills.Has(SkillId.Blacksmithing))
 			creature.Skills.Give(SkillId.Blacksmithing, SkillRank.Novice);
 
+		// Give Fishing when equipping a Fishing Rod
+		if ((item.HasTag("/fishingrod/")) && !creature.Skills.Has(SkillId.Fishing))
+			creature.Skills.Give(SkillId.Fishing, SkillRank.Novice);
+
 		// Give Enchant when equipping Magic Powder
 		if ((item.HasTag("/enchant/powder/")) && !creature.Skills.Has(SkillId.Enchant))
 		{
 			creature.Skills.Give(SkillId.Enchant, SkillRank.Novice);
 			creature.Skills.Train(SkillId.Enchant, 1);
+		}
+
+		// Cancel active bolt skill if weapon changes
+		if (ChannelServer.Instance.Conf.World.SwitchCancelBolts)
+		{
+			if (item.Info.Pocket == creature.Inventory.RightHandPocket || item.Info.Pocket == creature.Inventory.LeftHandPocket || item.Info.Pocket == creature.Inventory.MagazinePocket)
+			{
+				var skill = creature.Skills.ActiveSkill;
+				if (skill != null && skill.Is(SkillId.Icebolt, SkillId.Firebolt, SkillId.Lightningbolt))
+					creature.Skills.CancelActiveSkill();
+			}
+		}
+	}
+
+	[On("PlayerUnequipsItem")]
+	public void PlayerUnequipsItem(Creature creature, Item item)
+	{
+		// Remove Mana on unequipping wand
+		// http://mabinogiworld.com/view/Mana_Evaporation
+		if (!IsEnabled("ManaBurnRemove"))
+		{
+			if (item.HasTag("/wand/|/staff/"))
+				creature.BurnMana();
 		}
 	}
 }

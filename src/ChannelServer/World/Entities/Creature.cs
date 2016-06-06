@@ -27,7 +27,7 @@ namespace Aura.Channel.World.Entities
 	/// </summary>
 	public abstract class Creature : Entity, IDisposable
 	{
-		public const float BaseMagicBalance = 0.3f;
+		public const int BaseMagicBalance = 30;
 		public const float MinStability = -10, MaxStability = 100;
 
 		private const float MinWeight = 0.7f, MaxWeight = 1.5f;
@@ -1699,7 +1699,7 @@ namespace Aura.Channel.World.Entities
 		/// </summary>
 		/// <param name="baseBalance"></param>
 		/// <returns></returns>
-		protected int GetRndBalance(int baseBalance)
+		public int GetRndBalance(int baseBalance)
 		{
 			var rnd = RandomProvider.Get();
 			var balance = baseBalance;
@@ -1709,8 +1709,8 @@ namespace Aura.Channel.World.Entities
 
 			// Randomization
 			var diff = 100 - balance;
-			var min = Math.Max(0, balance - diff);
-			var max = Math.Max(100, balance + diff);
+			var min = balance - diff;
+			var max = balance + diff;
 
 			balance = rnd.Next(min, max + 1);
 
@@ -1720,20 +1720,24 @@ namespace Aura.Channel.World.Entities
 		/// <summary>
 		/// Calculates random magic balance (0.0~1.0).
 		/// </summary>
+		/// <param name="baseBalance"></param>
 		/// <returns></returns>
-		public float GetRndMagicBalance(float baseBalance = BaseMagicBalance)
+		public int GetRndMagicBalance(int baseBalance = BaseMagicBalance)
 		{
 			var rnd = RandomProvider.Get();
 			var balance = baseBalance;
 
 			// Int
-			balance += (Math.Max(0, this.Int - 10) / 4) / 100f;
+			balance = (int)Math2.Clamp(0, 100, balance + ((this.Int - 10) / 4f));
 
-			// Randomization, balance+-(100-balance), eg 80 = 60~100
-			var diff = 1.0f - balance;
-			balance += ((diff - (diff * 2 * (float)rnd.NextDouble())) * (float)rnd.NextDouble());
+			// Randomization
+			var diff = 100 - balance;
+			var min = balance - diff;
+			var max = balance + diff;
 
-			return Math2.Clamp(0f, 1f, balance);
+			balance = rnd.Next(min, max + 1);
+
+			return Math2.Clamp(0, 100, balance);
 		}
 
 		/// <summary>
@@ -1750,7 +1754,11 @@ namespace Aura.Channel.World.Entities
 		{
 			var rnd = RandomProvider.Get();
 
-			var baseDamage = rnd.Between(baseMin, baseMax);
+			// Base damage
+			float min = baseMin;
+			float max = baseMax;
+
+			// Bonus
 			var factor = rnd.Between(skill.RankData.FactorMin, skill.RankData.FactorMax);
 			var totalMagicAttack = this.MagicAttack + this.MagicAttackMod;
 
@@ -1767,9 +1775,17 @@ namespace Aura.Channel.World.Entities
 			if (skill.Info.Id == SkillId.Firebolt || skill.Info.Id == SkillId.IceSpear || skill.Info.Id == SkillId.HailStorm)
 				chargeMultiplier = skill.Stacks;
 
-			var damage = (float)(baseDamage + Math.Floor(wandBonus * (1 + chargeMultiplier)) + (factor * totalMagicAttack));
+			var bonusDamage = (float)Math.Floor(wandBonus * (1 + chargeMultiplier)) + (factor * totalMagicAttack);
+			min += bonusDamage;
+			max += bonusDamage;
 
-			return (damage * this.GetRndMagicBalance());
+			// Random balance multiplier
+			var multiplier = this.GetRndMagicBalance() / 100f;
+
+			if (min > max)
+				min = max;
+
+			return (min + (max - min) * multiplier);
 		}
 
 		/// <summary>
@@ -2414,16 +2430,36 @@ namespace Aura.Channel.World.Entities
 		/// Calculates total crit chance, taking stat bonuses
 		/// and given protection and bonus into consideration.
 		/// </summary>
-		/// <param name="protection"></param>
+		/// <param name="protection">Protection to subtract from crit.</param>
 		/// <returns></returns>
 		public float GetTotalCritChance(float protection)
 		{
+			return this.GetTotalCritChance(protection, false);
+		}
+
+		/// <summary>
+		/// Calculates total crit chance, taking stat bonuses
+		/// and given protection and bonus into consideration.
+		/// </summary>
+		/// <param name="protection">Protection to subtract from crit.</param>
+		/// <param name="magic">If true, weapon crit bonuses only apply if weapon is a wand.</param>
+		/// <returns></returns>
+		public float GetTotalCritChance(float protection, bool magic)
+		{
 			var crit = 0f;
-			if (this.RightHand == null)
+
+			if (this.RightHand == null || (magic && !this.RightHand.HasTag("/weapon/wand/")))
+			{
+				// Use base crit if no weapon or no staff for magic is equipped.
 				crit = this.CriticalBase + this.CriticalBaseMod;
+			}
 			else
 			{
+				// Get base crit from weapon.
 				crit = this.RightCriticalMod;
+
+				// Get average crit from both weapons if a second one
+				// is equipped.
 				if (this.LeftHand != null)
 					crit = (crit + this.LeftCriticalMod) / 2;
 			}
@@ -3011,6 +3047,17 @@ namespace Aura.Channel.World.Entities
 				item.OptionInfo.Flags |= ItemFlags.Blessed;
 				Send.ItemBlessed(this, item);
 			}
+		}
+
+		/// <summary>
+		/// Removes the given percentage of the creature's mana
+		/// and updates client.
+		/// </summary>
+		/// <param name="amount"></param>
+		public void BurnMana(float amount = 100)
+		{
+			this.Mana -= this.Mana * (amount / 100f);
+			Send.StatUpdate(this, StatUpdateType.Private, Stat.Mana);
 		}
 	}
 

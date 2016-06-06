@@ -192,12 +192,16 @@ namespace Aura.Channel.Skills.Life
 				var propName = "prop_caught_objbox_01";
 				var propSize = 0;
 				var size = 0;
+				var dropData = creature.Temp.FishingDrop;
 
 				// Create item
-				item = new Item(creature.Temp.FishingDrop);
+				if (dropData.QuestId != 0)
+					item = Item.CreateQuestScroll(dropData.QuestId);
+				else
+					item = new Item(dropData);
 
 				// Check fish
-				var fish = AuraData.FishDb.Find(creature.Temp.FishingDrop.ItemId);
+				var fish = AuraData.FishDb.Find(dropData.ItemId);
 				if (fish != null)
 				{
 					propName = fish.PropName;
@@ -439,7 +443,7 @@ namespace Aura.Channel.Skills.Life
 				{
 					if (item.HasTag("/fish/"))
 						skill.Train(1); // Catch a fish.
-					else if (item.Info.Id == 70031)
+					else if (item.QuestId != 0)
 						skill.Train(2); // Catch a quest scroll.
 					else
 						skill.Train(3); // Catch an item.

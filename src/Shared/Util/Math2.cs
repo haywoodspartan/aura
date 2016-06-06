@@ -70,5 +70,70 @@ namespace Aura.Shared.Util
 		{
 			return (val >= min && val <= max);
 		}
+
+		/// <summary>
+		/// Multiplies initial value with multiplicator, returns either the
+		/// result or Min/MaxValue if the multiplication caused an overflow.
+		/// </summary>
+		/// <param name="initialValue"></param>
+		/// <param name="multiplicator"></param>
+		/// <returns></returns>
+		public static short MultiplyChecked(short initialValue, double multiplicator)
+		{
+			try
+			{
+				checked { return (short)(initialValue * multiplicator); }
+			}
+			catch
+			{
+				if (initialValue >= 0)
+					return short.MaxValue;
+				else
+					return short.MinValue;
+			}
+		}
+		/// <summary>
+		/// Multiplies initial value with multiplicator, returns either the
+		/// result or Min/MaxValue if the multiplication caused an overflow.
+		/// </summary>
+		/// <param name="initialValue"></param>
+		/// <param name="multiplicator"></param>
+		/// <returns></returns>
+		public static int MultiplyChecked(int initialValue, double multiplicator)
+		{
+			try
+			{
+				checked { return (int)(initialValue * multiplicator); }
+			}
+			catch
+			{
+				if (initialValue >= 0)
+					return int.MaxValue;
+				else
+					return int.MinValue;
+			}
+		}
+
+		/// <summary>
+		/// Multiplies initial value with multiplicator, returns either the
+		/// result or Min/MaxValue if the multiplication caused an overflow.
+		/// </summary>
+		/// <param name="initialValue"></param>
+		/// <param name="multiplicator"></param>
+		/// <returns></returns>
+		public static long MultiplyChecked(long initialValue, double multiplicator)
+		{
+			try
+			{
+				checked { return (long)(initialValue * multiplicator); }
+			}
+			catch
+			{
+				if (initialValue >= 0)
+					return long.MaxValue;
+				else
+					return long.MinValue;
+			}
+		}
 	}
 }

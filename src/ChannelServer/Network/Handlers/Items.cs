@@ -54,6 +54,17 @@ namespace Aura.Channel.Network.Handlers
 				goto L_Fail;
 			}
 
+			// Check touchability
+			if (target.IsEquip())
+			{
+				string error;
+				if (!item.CanBeTouchedBy(creature, out error))
+				{
+					Send.MsgBox(creature, error);
+					goto L_Fail;
+				}
+			}
+
 			// Check bag
 			if (item.IsBag && target.IsBag() && !ChannelServer.Instance.Conf.World.Bagception)
 			{
@@ -178,6 +189,13 @@ namespace Aura.Channel.Network.Handlers
 				return;
 			}
 
+			// Check droppability
+			if (item.HasTag("/not_dropable/"))
+			{
+				Send.ItemDropR(creature, Localization.Get("You cannot drop this item."));
+				return;
+			}
+
 			// Try to remove item
 			if (!creature.Inventory.Remove(item))
 			{
@@ -247,6 +265,15 @@ namespace Aura.Channel.Network.Handlers
 				}
 			}
 
+			// Check touchability
+			string error;
+			if (!item.CanBeTouchedBy(creature, out error))
+			{
+				Send.MsgBox(creature, error);
+				Send.ItemPickUpR(creature, ItemPickUpResult.FailNoMessage, entityId);
+				return;
+			}
+
 			// Add bag
 			if (item.IsBag)
 			{
@@ -289,9 +316,13 @@ namespace Aura.Channel.Network.Handlers
 			var item = creature.Inventory.GetItemSafe(itemEntityId);
 
 			// Check if item is destroyable
-			if (!item.HasTag("/destroyable/"))
+			// The check for the Sword of Elsinore is a terrible hack,
+			// but in my defense, it was devCAT's idea. Instead of adding the
+			// destroyable tag to the item, the client checks for the
+			// hamlets_sword tag >_>
+			if (!item.HasTag("/destroyable/|/hamlets_sword/"))
 			{
-				Log.Warning("ItemDestroy: Creature '{0:X16}' tried to destroy a non-destroyable item.");
+				Log.Warning("ItemDestroy: Creature '{0:X16}' tried to destroy a non-destroyable item.", creature.EntityId);
 				Send.ItemDestroyR(creature, false);
 				return;
 			}

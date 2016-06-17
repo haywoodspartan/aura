@@ -14,6 +14,7 @@ using Aura.Mabi.Const;
 using Aura.Shared.Network;
 using Aura.Shared.Util;
 using Aura.Mabi.Network;
+using Aura.Mabi;
 
 namespace Aura.Channel.Skills.Music
 {
@@ -24,7 +25,7 @@ namespace Aura.Channel.Skills.Music
 	/// Prepare starts the playing, complete is sent once it's over.
 	/// </remarks>
 	[Skill(SkillId.PlayingInstrument)]
-	public class PlayingInstrument : IPreparable, ICompletable, ICancelable, IInitiableSkillHandler, INoPrepareCostSkill
+	public class PlayingInstrument : IPreparable, ICompletable, ICancelable, IInitiableSkillHandler, ICustomPrepareUsageSkill
 	{
 		/// <summary>
 		/// Minimum random score id.
@@ -80,6 +81,11 @@ namespace Aura.Channel.Skills.Music
 			// TODO: Base quality on skills and score ranks.
 			var quality = (PlayingQuality)rnd.Next((int)PlayingQuality.VeryBad, (int)PlayingQuality.VeryGood + 1);
 
+			// Sunday: Increase in success rate for instrument playing.
+			// Another attempt if quality was bad, unofficial.
+			if (quality < PlayingQuality.Good && ErinnTime.Now.Month == ErinnMonth.Imbolic)
+				quality = (PlayingQuality)rnd.Next((int)PlayingQuality.VeryBad, (int)PlayingQuality.VeryGood + 1);
+
 			// Up quality by chance, based on Musical Knowledge
 			var musicalKnowledgeSkill = creature.Skills.Get(SkillId.MusicalKnowledge);
 			if (musicalKnowledgeSkill != null && rnd.Next(100) < musicalKnowledgeSkill.RankData.Var2)
@@ -117,11 +123,18 @@ namespace Aura.Channel.Skills.Music
 				this.AfterPlay(creature, skill, quality);
 			});
 
-			// Use stamina while skill is active if no scroll was used.
-			if (rndScore != 0)
-				creature.Regens.Add("PlayingInstrument", Stat.Stamina, skill.RankData.StaminaActive, creature.StaminaMax);
-
 			return true;
+		}
+
+		/// <summary>
+		/// Use stamina while skill is active if no scroll was used.
+		/// </summary>
+		/// <param name="creature"></param>
+		/// <param name="skill"></param>
+		public void CustomPrepareUsage(Creature creature, Skill skill)
+		{
+			if (this.GetScore(creature) == null)
+				creature.Regens.Add("PlayingInstrument", Stat.Stamina, skill.RankData.StaminaActive, creature.StaminaMax);
 		}
 
 		/// <summary>

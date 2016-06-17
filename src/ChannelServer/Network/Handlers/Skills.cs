@@ -57,6 +57,11 @@ namespace Aura.Channel.Network.Handlers
 				goto L_Fail;
 			}
 
+			// Exp bonus
+			var exp = skill.GetExpBonus();
+			creature.GiveExp(exp);
+			Send.AcquireInfo(creature, "exp", exp);
+
 			// Advance
 			creature.GiveAp(-ap);
 			creature.Skills.Give(skill.Info.Id, nextRank);
@@ -110,6 +115,8 @@ namespace Aura.Channel.Network.Handlers
 			}
 
 			// Check Mana
+			// According to the Wiki you need the full amount, even if you
+			// have ManaUse upgrades.
 			if (creature.Mana < skill.RankData.ManaCost)
 			{
 				Send.SystemMessage(creature, Localization.Get("Insufficient Mana"));
@@ -131,14 +138,14 @@ namespace Aura.Channel.Network.Handlers
 
 				// Normal Mana/Stamina reduction
 				if (skill.RankData.ManaPrepare != 0)
-					creature.Regens.Add(Stat.Mana, skill.RankData.ManaPrepare, creature.ManaMax, 1000);
+					creature.Regens.Add(Stat.Mana, creature.GetAdjustedManaCost(skill.RankData.ManaPrepare), creature.ManaMax, 1000);
 				if (skill.RankData.StaminaPrepare != 0)
 					creature.Regens.Add(Stat.Stamina, skill.RankData.StaminaPrepare, creature.StaminaMax, 1000);
 
 				// Constant Mana/Stamina reduction, for the duration
 				// of the skill. Example: Mana Shield
 				if (skill.RankData.ManaActive != 0)
-					creature.Regens.Add("SkillInUse" + skill.Info.Id, Stat.Mana, skill.RankData.ManaActive, creature.ManaMax);
+					creature.Regens.Add("SkillInUse" + skill.Info.Id, Stat.Mana, creature.GetAdjustedManaCost(skill.RankData.ManaActive), creature.ManaMax);
 				if (skill.RankData.StaminaActive != 0)
 					creature.Regens.Add("SkillInUse" + skill.Info.Id, Stat.Stamina, skill.RankData.StaminaActive, creature.StaminaMax);
 
@@ -250,6 +257,8 @@ namespace Aura.Channel.Network.Handlers
 			}
 
 			// Check Mana
+			// According to the Wiki you need the full amount, even if you
+			// have ManaUse upgrades.
 			if (creature.Mana < skill.RankData.ManaCost)
 			{
 				Send.SystemMessage(creature, Localization.Get("Insufficient Mana"));
@@ -282,9 +291,13 @@ namespace Aura.Channel.Network.Handlers
 				}
 
 				// Normal Mana/Stamina reduction
-				// It seems as if some skills, like Playing Instrument,
-				// actually don't use 
-				if (!(handler is INoPrepareCostSkill))
+				// Usage skill's custom usage handler if it has one.
+				var usageHandler = handler as ICustomPrepareUsageSkill;
+				if (usageHandler != null)
+				{
+					usageHandler.CustomPrepareUsage(creature, skill);
+				}
+				else
 				{
 					var castTime = skill.GetCastTime();
 
@@ -292,7 +305,7 @@ namespace Aura.Channel.Network.Handlers
 					{
 						if (castTime == 0)
 						{
-							creature.Mana += skill.RankData.ManaPrepare;
+							creature.Mana += creature.GetAdjustedManaCost(skill.RankData.ManaPrepare);
 							Send.StatUpdate(creature, StatUpdateType.Private, Stat.Mana);
 						}
 						else
@@ -305,7 +318,8 @@ namespace Aura.Channel.Network.Handlers
 							// in 100th of ms.
 							// This adjusts them for per second, for client
 							// and server.
-							var perSecond = (float)(skill.RankData.ManaPrepare / Math.Ceiling(castTime / 1000f) * (skill.RankData.NewLoadTime / 1000f));
+							var cost = creature.GetAdjustedManaCost(skill.RankData.ManaPrepare);
+							var perSecond = (float)(cost / Math.Ceiling(castTime / 1000f) * (skill.RankData.NewLoadTime / 1000f));
 							var seconds = (int)(Math.Ceiling(castTime / 1000f) * 1000);
 
 							creature.Regens.Add(Stat.Mana, perSecond, creature.ManaMax, seconds);
@@ -410,7 +424,7 @@ namespace Aura.Channel.Network.Handlers
 				// Constant Mana/Stamina reduction, for the duration
 				// of Ready. Example: Counterattack
 				if (skill.RankData.ManaWait != 0)
-					creature.Regens.Add("ActiveSkillWait", Stat.Mana, skill.RankData.ManaWait, creature.ManaMax);
+					creature.Regens.Add("ActiveSkillWait", Stat.Mana, creature.GetAdjustedManaCost(skill.RankData.ManaWait), creature.ManaMax);
 				if (skill.RankData.StaminaWait != 0)
 					creature.Regens.Add("ActiveSkillWait", Stat.Stamina, skill.RankData.StaminaWait, creature.StaminaMax);
 
@@ -485,7 +499,7 @@ namespace Aura.Channel.Network.Handlers
 
 				// Mana/Stamina reduction on usage. Example: Lightning Rod
 				if (skill.RankData.ManaActive != 0)
-					creature.Regens.Add(Stat.Mana, skill.RankData.ManaActive, creature.ManaMax, 1000);
+					creature.Regens.Add(Stat.Mana, creature.GetAdjustedManaCost(skill.RankData.ManaActive), creature.ManaMax, 1000);
 				if (skill.RankData.StaminaActive != 0)
 					creature.Regens.Add(Stat.Stamina, skill.RankData.StaminaActive, creature.StaminaMax, 1000);
 

@@ -19,6 +19,7 @@ using Aura.Channel.Skills.Life;
 using System.Collections.Generic;
 using Aura.Channel.Skills;
 using System.Threading;
+using Aura.Channel.Scripting.Scripts;
 
 namespace Aura.Channel.World.Entities
 {
@@ -450,6 +451,7 @@ namespace Aura.Channel.World.Entities
 		/// </summary>
 		public bool CanRunWithRanged { get { return (this.IsElf || (this.RightHand != null && this.RightHand.HasTag("/crossbow/"))); } }
 
+		public long _hitTrackerIds;
 		public Dictionary<long, HitTracker> _hitTrackers;
 		public int _totalHits;
 
@@ -1882,7 +1884,10 @@ namespace Aura.Channel.World.Entities
 				{
 					// Create new tracker if there is none yet
 					if (!_hitTrackers.TryGetValue(from.EntityId, out tracker))
-						_hitTrackers[from.EntityId] = (tracker = new HitTracker(this, from));
+					{
+						var newId = Interlocked.Increment(ref _hitTrackerIds);
+						_hitTrackers[from.EntityId] = (tracker = new HitTracker(newId, this, from));
+					}
 				}
 				tracker.RegisterHit(damage);
 				_totalHits = Interlocked.Increment(ref _totalHits);
@@ -1908,6 +1913,7 @@ namespace Aura.Channel.World.Entities
 		/// <param name="killer"></param>
 		public virtual void Kill(Creature killer)
 		{
+			// Conditions
 			if (this.Conditions.Has(ConditionsA.Deadly))
 				this.Conditions.Deactivate(ConditionsA.Deadly);
 			this.Activate(CreatureStates.Dead);
@@ -1917,84 +1923,127 @@ namespace Aura.Channel.World.Entities
 			Send.IsNowDead(this);
 			Send.SetFinisher(this, 0);
 
+			// Events
 			ChannelServer.Instance.Events.OnCreatureKilled(this, killer);
 			if (killer != null && killer.IsPlayer)
 				ChannelServer.Instance.Events.OnCreatureKilledByPlayer(this, killer);
 			this.Death.Raise(this, killer);
 
+			// Cancel active skill
 			if (this.Skills.ActiveSkill != null)
 				this.Skills.CancelActiveSkill();
 
+			// Drops
 			var rnd = RandomProvider.Get();
 			var pos = this.GetPosition();
 
-			// Gold
-			if (rnd.NextDouble() < ChannelServer.Instance.Conf.World.GoldDropChance)
+			this.DropGold(killer, rnd, pos);
+			this.DropItems(killer, rnd, pos);
+
+			// DeadMenu
+			this.DeadMenu.Update();
+		}
+
+		/// <summary>
+		/// Drops creature's gold.
+		/// </summary>
+		/// <param name="killer"></param>
+		/// <param name="rnd"></param>
+		/// <param name="pos"></param>
+		private void DropGold(Creature killer, Random rnd, Position pos)
+		{
+			if (rnd.NextDouble() >= ChannelServer.Instance.Conf.World.GoldDropChance)
+				return;
+
+			// Random base amount
+			var amount = rnd.Next(this.Drops.GoldMin, this.Drops.GoldMax + 1);
+
+			if (amount > 0)
 			{
-				// Random base amount
-				var amount = rnd.Next(this.Drops.GoldMin, this.Drops.GoldMax + 1);
+				var finish = LuckyFinish.None;
 
-				if (amount > 0)
+				// Lucky Finish
+				var luckyChance = rnd.NextDouble();
+
+				// Sunday: Increase in lucky finish.
+				// +5%, bonus is unofficial.
+				if (ErinnTime.Now.Month == ErinnMonth.Imbolic)
+					luckyChance += 0.05;
+
+				if (luckyChance < ChannelServer.Instance.Conf.World.HugeLuckyFinishChance)
 				{
-					// Lucky Finish
-					var luckyChance = rnd.NextDouble();
-					if (luckyChance < ChannelServer.Instance.Conf.World.HugeLuckyFinishChance)
-					{
-						amount *= 100;
+					amount *= 100;
+					finish = LuckyFinish.Lucky;
 
-						if (amount >= 2000) killer.Titles.Enable(23); // the Lucky
-
-						Send.CombatMessage(killer, Localization.Get("Huge Lucky Finish!!"));
-						Send.Notice(killer, Localization.Get("Huge Lucky Finish!!"));
-					}
-					else if (luckyChance < ChannelServer.Instance.Conf.World.BigLuckyFinishChance)
-					{
-						amount *= 5;
-
-						if (amount >= 2000) killer.Titles.Enable(23); // the Lucky
-
-						Send.CombatMessage(killer, Localization.Get("Big Lucky Finish!!"));
-						Send.Notice(killer, Localization.Get("Big Lucky Finish!!"));
-					}
-					else if (luckyChance < ChannelServer.Instance.Conf.World.LuckyFinishChance)
-					{
-						amount *= 2;
-
-						if (amount >= 2000) killer.Titles.Enable(23); // the Lucky
-
-						Send.CombatMessage(killer, Localization.Get("Lucky Finish!!"));
-						Send.Notice(killer, Localization.Get("Lucky Finish!!"));
-					}
-
-					// Drop rate muliplicator
-					amount = Math.Min(21000, (int)(amount * ChannelServer.Instance.Conf.World.GoldDropRate));
-
-					// Drop stack for stack
-					var i = 0;
-					var pattern = (amount == 21000);
-					do
-					{
-						Position dropPos;
-						if (!pattern)
-						{
-							dropPos = pos.GetRandomInRange(Item.DropRadius, rnd);
-						}
-						else
-						{
-							dropPos = new Position(pos.X + CreatureDrops.MaxGoldPattern[i, 0], pos.Y + CreatureDrops.MaxGoldPattern[i, 1]);
-							i++;
-						}
-
-						var gold = Item.CreateGold(Math.Min(1000, amount));
-						gold.Drop(this.Region, dropPos, 0, killer, false);
-
-						amount -= gold.Info.Amount;
-					}
-					while (amount > 0);
+					Send.CombatMessage(killer, Localization.Get("Huge Lucky Finish!!"));
+					Send.Notice(killer, Localization.Get("Huge Lucky Finish!!"));
 				}
-			}
+				else if (luckyChance < ChannelServer.Instance.Conf.World.BigLuckyFinishChance)
+				{
+					amount *= 5;
+					finish = LuckyFinish.BigLucky;
 
-			// Drops
+					Send.CombatMessage(killer, Localization.Get("Big Lucky Finish!!"));
+					Send.Notice(killer, Localization.Get("Big Lucky Finish!!"));
+				}
+				else if (luckyChance < ChannelServer.Instance.Conf.World.LuckyFinishChance)
+				{
+					amount *= 2;
+					finish = LuckyFinish.HugeLucky;
+
+					Send.CombatMessage(killer, Localization.Get("Lucky Finish!!"));
+					Send.Notice(killer, Localization.Get("Lucky Finish!!"));
+				}
+
+				// If lucky finish
+				if (finish != LuckyFinish.None)
+				{
+					// Event
+					ChannelServer.Instance.Events.OnCreatureGotLuckyFinish(killer, finish, amount);
+
+					// Sunday: Increase in lucky bonus.
+					// +5%, bonus is unofficial.
+					if (ErinnTime.Now.Month == ErinnMonth.Imbolic)
+						amount = (int)(amount * 1.05f);
+				}
+
+				// Drop rate muliplicator
+				amount = Math.Min(21000, Math2.MultiplyChecked(amount, ChannelServer.Instance.Conf.World.GoldDropRate));
+
+				// Drop stack for stack
+				var i = 0;
+				var pattern = (amount == 21000);
+				do
+				{
+					Position dropPos;
+					if (!pattern)
+					{
+						dropPos = pos.GetRandomInRange(Item.DropRadius, rnd);
+					}
+					else
+					{
+						dropPos = new Position(pos.X + CreatureDrops.MaxGoldPattern[i, 0], pos.Y + CreatureDrops.MaxGoldPattern[i, 1]);
+						i++;
+					}
+
+					var gold = Item.CreateGold(Math.Min(1000, amount));
+					gold.Drop(this.Region, dropPos, 0, killer, false);
+
+					amount -= gold.Info.Amount;
+				}
+				while (amount > 0);
+			}
+		}
+
+		/// <summary>
+		/// Drops creature's drop items.
+		/// </summary>
+		/// <param name="killer"></param>
+		/// <param name="rnd"></param>
+		/// <param name="pos"></param>
+		private void DropItems(Creature killer, Random rnd, Position pos)
+		{
+			// Normal
 			var dropped = new HashSet<int>();
 			foreach (var dropData in this.Drops.Drops)
 			{
@@ -2004,7 +2053,17 @@ namespace Aura.Channel.World.Entities
 					continue;
 				}
 
-				if (rnd.NextDouble() * 100 < dropData.Chance * ChannelServer.Instance.Conf.World.DropRate)
+				var dropRate = dropData.Chance * ChannelServer.Instance.Conf.World.DropRate;
+				var dropChance = rnd.NextDouble() * 100;
+				var month = ErinnTime.Now.Month;
+
+				// Tuesday: Increase in dungeon item drop rate.
+				// Wednesday: Increase in item drop rate from animals and nature.
+				// +5%, bonus is unofficial.
+				if ((month == ErinnMonth.Baltane && this.Region.IsDungeon) || (month == ErinnMonth.AlbanHeruin && !this.Region.IsDungeon))
+					dropRate += 5;
+
+				if (dropChance < dropRate)
 				{
 					// Only drop any item once
 					if (dropped.Contains(dropData.ItemId))
@@ -2017,12 +2076,11 @@ namespace Aura.Channel.World.Entities
 				}
 			}
 
+			// Static
 			foreach (var item in this.Drops.StaticDrops)
 				item.Drop(this.Region, pos, Item.DropRadius, killer, false);
 
 			this.Drops.ClearStaticDrops();
-
-			this.DeadMenu.Update();
 		}
 
 		/// <summary>
@@ -2120,6 +2178,7 @@ namespace Aura.Channel.World.Entities
 			float life = 0, mana = 0, stamina = 0, str = 0, dex = 0, int_ = 0, will = 0, luck = 0;
 			var ap = 0;
 
+			var oldAge = this.Age;
 			var newAge = this.Age + years;
 			while (this.Age < newAge)
 			{
@@ -2189,6 +2248,8 @@ namespace Aura.Channel.World.Entities
 
 			// XXX: Replace with effect and notice to allow something to happen past age 25?
 			Send.AgeUpEffect(this, this.Age);
+
+			ChannelServer.Instance.Events.OnCreatureAged(this, oldAge);
 		}
 
 		/// <summary>
@@ -2255,6 +2316,13 @@ namespace Aura.Channel.World.Entities
 			// warning.
 			var expPenalty = this.DeadMenu.GetExpPenalty(this.Level, option);
 			var minExp = AuraData.ExpDb.GetTotalForNextLevel(this.Level - 2);
+
+			// Friday: Decrease in penalties if knocked unconscious.
+			// -5%, bonus is unofficial.
+			// TODO: Does the client subtract the bonus on its side?
+			//   Check on Friday.
+			if (ErinnTime.Now.Month == ErinnMonth.AlbanElved)
+				expPenalty = (int)(expPenalty * 0.95f);
 
 			if (this.Exp - expPenalty < minExp)
 			{
@@ -2479,7 +2547,14 @@ namespace Aura.Channel.World.Entities
 			baseCritical += ((this.Will - 10) / 10f);
 			baseCritical += ((this.Luck - 10) / 5f);
 
-			return Math.Max(0, baseCritical - protection);
+			// Sunday: Increase in critical hit rate.
+			// +5%, bonus is unofficial.
+			if (ErinnTime.Now.Month == ErinnMonth.Imbolic)
+				baseCritical += 5;
+
+			baseCritical -= protection;
+
+			return Math.Max(0, baseCritical);
 		}
 
 		/// <summary>
@@ -2830,6 +2905,11 @@ namespace Aura.Channel.World.Entities
 			// Party bonus
 			result += this.GetProductionPartyBonus(skill);
 
+			// Monday: Increase in success rate for production skills.
+			// +10%, bonus is unofficial.
+			if (ErinnTime.Now.Month == ErinnMonth.AlbanEiler)
+				result += 5;
+
 			return Math2.Clamp(0, 99, result);
 		}
 
@@ -2899,6 +2979,21 @@ namespace Aura.Channel.World.Entities
 					}
 				}
 			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Returns the tracker for the creature with the given id, or null
+		/// if it doesn't exist.
+		/// </summary>
+		/// <returns></returns>
+		public HitTracker GetHitTracker(long entityId)
+		{
+			HitTracker result = null;
+
+			lock (_hitTrackers)
+				_hitTrackers.TryGetValue(entityId, out result);
 
 			return result;
 		}
@@ -3056,8 +3151,67 @@ namespace Aura.Channel.World.Entities
 		/// <param name="amount"></param>
 		public void BurnMana(float amount = 100)
 		{
-			this.Mana -= this.Mana * (amount / 100f);
+			var toBurn = this.Mana * (amount / 100f);
+
+			// Mana preservation stones
+			// http://wiki.mabinogiworld.com/view/Category:Mana_Preservation_Stones
+			if (!AuraData.FeaturesDb.IsEnabled("ManaBurnRemove"))
+			{
+				var stones = this.Inventory.GetItems(a => a.Data.ManaPreservation != 0, StartAt.BottomRight);
+				if (stones.Count != 0)
+				{
+					var stone = stones[0];
+					var preserve = stone.Data.ManaPreservation;
+					toBurn = Math.Max(0, toBurn - preserve);
+
+					this.Inventory.Decrement(stone);
+				}
+			}
+
+			if (toBurn == 0)
+				return;
+
+			this.Mana -= toBurn;
+
 			Send.StatUpdate(this, StatUpdateType.Private, Stat.Mana);
+		}
+
+		/// <summary>
+		/// Returns the chain cast level the creature can use for the
+		/// given skill.
+		/// </summary>
+		/// <remarks>
+		/// Checks passive monster skill and upgrades of equipped weapons.
+		/// </remarks>
+		/// <param name="skillId"></param>
+		/// <returns></returns>
+		public int GetChainCastLevel(SkillId skillId)
+		{
+			if (this.Skills.Has(SkillId.ChainCasting))
+				return 5;
+
+			if (this.RightHand == null)
+				return 0;
+
+			return this.Inventory.GetChainCastLevel(skillId);
+		}
+
+		/// <summary>
+		/// Returns given Mana cost adjusted for this creature, factoring in
+		/// bonuses and modifications.
+		/// </summary>
+		/// <param name="baseVal"></param>
+		/// <returns></returns>
+		public float GetAdjustedManaCost(float baseVal)
+		{
+			var cost = baseVal;
+			var mod = this.Inventory.GetManaUseModificator();
+
+			// Positive values mean you use less Mana.
+			if (mod != 0)
+				cost *= (100 - mod) / 100f;
+
+			return cost;
 		}
 	}
 

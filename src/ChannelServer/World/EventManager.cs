@@ -12,6 +12,7 @@ using Aura.Channel.Skills;
 using Aura.Data.Database;
 using Aura.Mabi.Const;
 using Aura.Channel.World.Dungeons;
+using Aura.Channel.World.Quests;
 
 namespace Aura.Channel.World
 {
@@ -230,6 +231,44 @@ namespace Aura.Channel.World
 		/// </summary>
 		public event Action<CookingEventArgs> CreatureCookedMeal;
 		public void OnCreatureCookedMeal(CookingEventArgs args) { CreatureCookedMeal.Raise(args); }
+
+		/// <summary>
+		/// Raised when a creature tried to produce or create something.
+		/// </summary>
+		public event Action<Creature, bool> CreatureFinishedProductionOrCollection;
+		public void OnCreatureFinishedProductionOrCollection(Creature creature, bool success) { CreatureFinishedProductionOrCollection.Raise(creature, success); }
+
+		/// <summary>
+		/// Raised when a creature fished pulled hook out of the water,
+		/// regardless of success. On fail, Item is null.
+		/// </summary>
+		public event Action<Creature, Item> CreatureFished;
+		public void OnCreatureFished(Creature creature, Item item) { CreatureFished.Raise(creature, item); }
+
+		/// <summary>
+		/// Raised when a creature fished pulled hook out of the water,
+		/// regardless of success. On fail, Item is null.
+		/// </summary>
+		public event Action<Creature, LuckyFinish, int> CreatureGotLuckyFinish;
+		public void OnCreatureGotLuckyFinish(Creature creature, LuckyFinish finish, int amount) { CreatureGotLuckyFinish.Raise(creature, finish, amount); }
+
+		/// <summary>
+		/// Raised when a creature started a PTJ.
+		/// </summary>
+		public event Action<Creature, PtjType> CreatureStartedPtj;
+		public void OnCreatureStartedPtj(Creature creature, PtjType type) { CreatureStartedPtj.Raise(creature, type); }
+
+		/// <summary>
+		/// Raised when a creature completed a PTJ.
+		/// </summary>
+		public event Action<Creature, PtjType> CreatureCompletedPtj;
+		public void OnCreatureCompletedPtj(Creature creature, PtjType type) { CreatureCompletedPtj.Raise(creature, type); }
+
+		/// <summary>
+		/// Raised when a creature aged.
+		/// </summary>
+		public event Action<Creature, int> CreatureAged;
+		public void OnCreatureAged(Creature creature, int prevAge) { CreatureAged.Raise(creature, prevAge); }
 	}
 
 	public static class EventHandlerExtensions

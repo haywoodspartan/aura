@@ -83,6 +83,8 @@ namespace Aura.Data.Database
 
 		public int BaseSize { get; set; }
 
+		public int ManaPreservation { get; set; }
+
 		public ItemDataTaste Taste { get; set; }
 		public ItemDataProductionBonus ProductionBonus { get; set; }
 
@@ -220,6 +222,7 @@ namespace Aura.Data.Database
 			info.BagHeight = entry.ReadInt("bagHeight");
 
 			info.BaseSize = entry.ReadInt("baseSize");
+			info.ManaPreservation = entry.ReadInt("manaPreservation");
 
 			info.Taste = new ItemDataTaste();
 			if (entry.ContainsKeys("taste"))

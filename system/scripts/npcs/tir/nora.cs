@@ -54,11 +54,28 @@ public class NoraBaseScript : NpcScript
 			case "@talk":
 				Greet();
 				Msg(Hide.Name, GetMoodString(), FavorExpression());
-				if (Player.Titles.SelectedTitle == 11002)
+
+				if (Title == 10062) // is a friend of Nora
+				{
+					var today = ErinnTime.Now.ToString("yyyyMMdd");
+					if (today != Player.Vars.Perm["nora_title_gift"])
+					{
+						Player.Vars.Perm["nora_title_gift"] = today;
+
+						GiveItem(60005, 5); // Bandage x5
+						Notice(L("Received Bandage from Nora."));
+						SystemMsg(L("Received Bandage from Nora."));
+
+						Msg(L("Welcome, my dear friend.<br/>Don't you think Uncle Piaras has noticed<br/>how much time you and I spend talking to each other?"));
+					}
+				}
+
+				if (Title == 11002)
 				{
 					Msg("<username/>, the Guardian of Erinn?<br/>Perfect timing.<br/>Rats keep appearing around town...<br/>Can you kill them for us?");
 					Msg("Malcom at the General Shop<br/>is so scared that he won't even step outside...");
 				}
+
 				await Conversation();
 				break;
 
@@ -82,8 +99,8 @@ public class NoraBaseScript : NpcScript
 					{
 						RndMsg(
 							"Do you have enough Gold?",
-							"You probably won't have enough money for the repair job.",
-							"Hey, hey. Take a look at your wallet before you ask."
+							"I'm sorry, but you need to pay more to repair that.",
+							"Yes, it's my side job, but it certainly is a job.<br/>If you don't have enough money, I can't repair it."
 						);
 					}
 					else if (result.Points == 1)
@@ -91,11 +108,15 @@ public class NoraBaseScript : NpcScript
 						if (result.Fails == 0)
 							RndMsg(
 								"The repair is done.",
-								"I'm sorry, but you need to pay more to repair that.",
-								"Yes, it's my side job, but it certainly is a job.<br/>If you don't have enough money, I can't repair it."
+								"OK, it was a success.",
+								"1 point, I think the clothes were well repaired."
 							);
 						else
-							Msg("Oops!");
+							RndMsg(
+								"Oops!",
+								"Oh, sorry. I made a mistake.",
+								"It says, \"My hands slipped\".<br/>What does that mean?"
+							);
 					}
 					else if (result.Points > 1)
 					{

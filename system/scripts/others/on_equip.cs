@@ -69,7 +69,16 @@ public class OnEquipSkillLearnScript : GeneralScript
 		if (!IsEnabled("ManaBurnRemove"))
 		{
 			if (item.HasTag("/wand/|/staff/"))
-				creature.BurnMana();
+			{
+				var rate = Math2.Clamp(0, 100, 100 - creature.Inventory.GetManaBurnBonus());
+				creature.BurnMana(rate);
+
+				if (rate == 100)
+					Send.Notice(creature, L("The Mana connected to the Wand has disappeared!"));
+				else
+					// Unofficial, but makes more sense.
+					Send.Notice(creature, L("Some Mana connected to the Wand has disappeared!"));
+			}
 		}
 	}
 }

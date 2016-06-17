@@ -16,6 +16,7 @@ using Aura.Mabi.Structs;
 using Aura.Mabi;
 using Aura.Channel.Skills;
 using Aura.Channel.World.Quests;
+using Aura.Channel.Scripting.Scripts;
 
 namespace Aura.Channel.World.Inventory
 {
@@ -73,6 +74,8 @@ namespace Aura.Channel.World.Inventory
 
 		private Creature _creature;
 		private Dictionary<Pocket, InventoryPocket> _pockets;
+
+		private Dictionary<long, WUUpgrades> _wuUpgrades;
 
 		private object _upgradeEffectSyncLock = new object();
 		private Dictionary<UpgradeCheckType, int> _upgradeCheckTypeCache = new Dictionary<UpgradeCheckType, int>();
@@ -222,6 +225,7 @@ namespace Aura.Channel.World.Inventory
 			_creature = creature;
 
 			_pockets = new Dictionary<Pocket, InventoryPocket>();
+			_wuUpgrades = new Dictionary<long, WUUpgrades>();
 
 			// Cursor, Temp, Quests
 			this.Add(new InventoryPocketStack(Pocket.Temporary));
@@ -1494,7 +1498,30 @@ namespace Aura.Channel.World.Inventory
 			if (item.Info.Pocket.IsMainEquip(this.WeaponSet))
 			{
 				this.ApplyDefenseBonuses(item);
+				this.ApplyUpgrades(item);
 				this.ApplyUpgradeEffects(item);
+			}
+
+			this.HandleWUUpgrades(item);
+		}
+
+		/// <summary>
+		/// Caches and applies WU upgrades for item.
+		/// </summary>
+		/// <param name="item"></param>
+		private void HandleWUUpgrades(Item item)
+		{
+			// There's probably a better way to save these bonuses,
+			// but I can't think of it right now.
+			var wustr = item.MetaData1.GetString("WU");
+			if (wustr != null)
+			{
+				var wu = new WUUpgrades(wustr);
+				lock (_wuUpgrades)
+					_wuUpgrades[item.EntityId] = wu;
+
+				if (wu.MagicDamage != 0)
+					_creature.StatMods.Add(Stat.MagicAttackMod, wu.MagicDamage, StatModSource.Equipment, item.EntityId);
 			}
 		}
 
@@ -1535,6 +1562,10 @@ namespace Aura.Channel.World.Inventory
 			}
 
 			_creature.StatMods.Remove(StatModSource.Equipment, item.EntityId);
+
+			// Remove WUUpgrades for this item
+			lock (_wuUpgrades)
+				_wuUpgrades.Remove(item.EntityId);
 		}
 
 		/// <summary>
@@ -1622,6 +1653,19 @@ namespace Aura.Channel.World.Inventory
 				_creature.StatMods.Add(Stat.DefenseBaseMod, item.OptionInfo.Defense, StatModSource.Equipment, item.EntityId);
 			if (item.OptionInfo.Protection != 0)
 				_creature.StatMods.Add(Stat.ProtectionBaseMod, item.OptionInfo.Protection, StatModSource.Equipment, item.EntityId);
+		}
+
+		/// <summary>
+		/// Applies upgrade bonuses from the item.
+		/// </summary>
+		/// <param name="item"></param>
+		private void ApplyUpgrades(Item item)
+		{
+			var magicDefenseMod = item.MetaData1.GetFloat("MDEF");
+			var magicProtectionMod = item.MetaData1.GetFloat("MPROT");
+
+			if (magicDefenseMod != 0) _creature.StatMods.Add(Stat.MagicDefenseMod, magicDefenseMod, StatModSource.Equipment, item.EntityId);
+			if (magicProtectionMod != 0) _creature.StatMods.Add(Stat.MagicProtectionMod, magicProtectionMod, StatModSource.Equipment, item.EntityId);
 		}
 
 		/// <summary>
@@ -1996,9 +2040,72 @@ namespace Aura.Channel.World.Inventory
 		/// <param name="amount"></param>
 		public void AddProficiency(Item item, int amount)
 		{
+			// Thursday: Increase of proficiency gaining rate.
+			// +5%, bonus is unofficial.
+			if (ErinnTime.Now.Month == ErinnMonth.Lughnasadh)
+				amount = (int)(amount * 1.05f);
+
 			item.Proficiency += amount;
 
 			Send.ItemExpUpdate(_creature, item);
+		}
+
+		/// <summary>
+		/// Returns the chain cast level for the given skill from the
+		/// equipped WUUpgrades. Returns 0 if no Chain Cast upgrade
+		/// could be found.
+		/// </summary>
+		/// <param name="skillId"></param>
+		/// <returns></returns>
+		public int GetChainCastLevel(SkillId skillId)
+		{
+			lock (_wuUpgrades)
+			{
+				foreach (var wu in _wuUpgrades.Values)
+				{
+					if (wu.ChainCastSkillId == (int)skillId)
+						return wu.ChainCastLevel;
+				}
+
+				return 0;
+			}
+		}
+
+		/// <summary>
+		/// Returns the ManaBurn bonus from all equipped WUUpgrades.
+		/// </summary>
+		/// <returns></returns>
+		public float GetManaBurnBonus()
+		{
+			lock (_wuUpgrades)
+				return _wuUpgrades.Values.Sum(a => a.ManaBurn);
+		}
+
+		/// <summary>
+		/// Returns the ManaUse modificator from all equipped WUUpgrades.
+		/// </summary>
+		/// <returns></returns>
+		public float GetManaUseModificator()
+		{
+			lock (_wuUpgrades)
+				return _wuUpgrades.Values.Sum(a => a.ManaUse);
+		}
+
+		/// <summary>
+		/// Returns casting speed modificator, based onthe WU upgrades for
+		/// the given item entity id.
+		/// </summary>
+		/// <returns></returns>
+		public int GetCastingSpeedMod(long entityId)
+		{
+			lock (_wuUpgrades)
+			{
+				WUUpgrades wu;
+				if (!_wuUpgrades.TryGetValue(entityId, out wu))
+					return 0;
+
+				return wu.CastingSpeed;
+			}
 		}
 	}
 }

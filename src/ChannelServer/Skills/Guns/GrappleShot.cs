@@ -64,7 +64,7 @@ namespace Aura.Channel.Skills.Guns
 		/// Grapple shot doesn't send the player directly to the target's potision,
 		/// but instead to a position slightly away from it.
 		/// </remarks>
-		private const int LandingDistance = 100;
+		private const int LandingDistance = 700;
 
 		/// <summary>
 		/// Subscribes handlers to events required for training.

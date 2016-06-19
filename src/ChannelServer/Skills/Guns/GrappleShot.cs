@@ -64,7 +64,7 @@ namespace Aura.Channel.Skills.Guns
 		/// Grapple shot doesn't send the player directly to the target's potision,
 		/// but instead to a position slightly away from it.
 		/// </remarks>
-		private const int LandingDistance = 100; // Unofficial Value
+		private const int LandingDistance = 700;
 
 		/// <summary>
 		/// Subscribes handlers to events required for training.
@@ -172,13 +172,21 @@ namespace Aura.Channel.Skills.Guns
 			attacker.Lock(Locks.Walk | Locks.Run);
 			var attackerPos = attacker.GetPosition();
 			var targetPos = target.GetPosition();
-			var newAttackerPos = attackerPos.GetRelative(targetPos, (LandingDistance * -1)); // Only moves to the target until a certain distance
+			var newAttackerPos = targetPos.GetRelative(attackerPos, (LandingDistance * -1)); // Only moves to the target until a certain distance
 
 			// Effects to attacker
-			Send.Effect(attacker, Effect.GrappleShot, (byte)1, targetEntityId, 434, 429); // Grapple Graphic Effect
-			Send.EffectDelayed(attacker, 434, Effect.GrappleShot, (byte)2, 929, (float)716.1226, (float)newAttackerPos.X, (float)newAttackerPos.Y); // Grapple shooting motion
-			Send.EffectDelayed(attacker, 863, Effect.GrappleShot, (byte)3, targetEntityId, (byte)1); // "Roll and Shoot" motion after grapple effect
-			Send.EffectDelayed(attacker, 1363, Effect.GrappleShot, (byte)4); // ?
+			// Note: Many values in these effects differ with each log and the reason is unknown so far...
+			int startingDelay = 434;
+			int unk1 = 429; // Needs to be calculated somehow....
+			int unk2 = unk1 + 500;
+			int secondDelay = 434 + unk1;
+			int thirdDelay = secondDelay + 500;
+			float distance = attackerPos.GetDistance(targetPos);
+
+			Send.Effect(attacker, Effect.GrappleShot, (byte)1, targetEntityId, startingDelay, unk1); // Grapple Graphic Effect | last int is unknown and varies
+			Send.EffectDelayed(attacker, startingDelay, Effect.GrappleShot, (byte)2, unk2, distance, (float)newAttackerPos.X, (float)newAttackerPos.Y); // Grapple shooting motion
+			Send.EffectDelayed(attacker, secondDelay, Effect.GrappleShot, (byte)3, targetEntityId, (byte)1); // "Roll and Shoot" motion after grapple effect
+			Send.EffectDelayed(attacker, thirdDelay, Effect.GrappleShot, (byte)4); // ?
 			Send.Effect(attacker, 329, (byte)1, (byte)0); // ?
 
 			// Use
@@ -242,56 +250,64 @@ namespace Aura.Channel.Skills.Guns
 			// Mana Shield
 			ManaShield.Handle(target, ref damage, tAction);
 
-			// Targets can be friendly entities as well.
-			if (attacker.CanTarget(target))
+			// Delay Combat
+			Task.Delay(thirdDelay).ContinueWith(_ =>
 			{
-				// Apply Damage
-				target.TakeDamage(tAction.Damage = damage, attacker);
-
-				// Aggro
-				target.Aggro(attacker);
-
-				tAction.Stun = TargetStun;
-			}
-
-			aAction.Stun = AttackerStun;
-
-			// Death or Knockback
-			if (target.IsDead)
-			{
-				tAction.Set(TargetOptions.FinishingKnockDown);
-				attacker.Shove(target, KnockbackDistance);
-				cap.Handle(); // The cap.Handle condition below doesn't apply to dead enemies.
-			}
-			else
-			{
-				// Reduce Stability if not knocked down
-				if (!target.IsKnockedDown)
+				// Targets can be friendly entities as well.
+				if (attacker.CanTarget(target))
 				{
-					target.Stability -= StabilityReduction;
+					// Apply Damage
+					target.TakeDamage(tAction.Damage = damage, attacker);
+
+					// Aggro
+					target.Aggro(attacker);
+
+					tAction.Stun = TargetStun;
 				}
 
-				// Knockback
-				if (target.Stability < 30)
-				{
-					if (target.IsUnstable && target.Is(RaceStands.KnockDownable))
-					{
-						tAction.Set(TargetOptions.KnockDown);
-						attacker.Shove(target, KnockbackDistance);
-					}
-					else if (target.Is(RaceStands.KnockBackable))
-					{
-						tAction.Set(TargetOptions.KnockBack);
-						attacker.Shove(target, KnockbackDistance);
-					}
-				}
-				tAction.Creature.Stun = tAction.Stun;
-			}
-			aAction.Creature.Stun = aAction.Stun;
+				aAction.Stun = AttackerStun;
 
-			// No cap effects if friendly entity.
-			if (attacker.CanTarget(target))
-				cap.Handle();
+				// Death or Knockback
+				if (target.IsDead)
+				{
+					tAction.Set(TargetOptions.FinishingKnockDown);
+					attacker.Shove(target, KnockbackDistance);
+
+					// cap must be handled here as targets wouldn't targetable when they're dead.
+					cap.Handle();
+				}
+				else
+				{
+					// Reduce Stability if not knocked down
+					if (!target.IsKnockedDown)
+					{
+						target.Stability -= StabilityReduction;
+					}
+
+					// Knockback
+					if (target.Stability < 30)
+					{
+						if (target.IsUnstable && target.Is(RaceStands.KnockDownable))
+						{
+							tAction.Set(TargetOptions.KnockDown);
+							attacker.Shove(target, KnockbackDistance);
+						}
+						else if (target.Is(RaceStands.KnockBackable))
+						{
+							tAction.Set(TargetOptions.KnockBack);
+							attacker.Shove(target, KnockbackDistance);
+						}
+					}
+					tAction.Creature.Stun = tAction.Stun;
+				}
+				aAction.Creature.Stun = aAction.Stun;
+
+				// If target isn't dead, still handle cap if targetable
+				if (attacker.CanTarget(target))
+				{
+					cap.Handle();
+				}
+			});
 
 			// Item Update excluding Way Of The Gun
 			if (!attacker.Conditions.Has(ConditionsD.WayOfTheGun))
@@ -320,7 +336,7 @@ namespace Aura.Channel.Skills.Guns
 			creature.Skills.ActiveSkill = null;
 
 			// Unlock Leftover Locks
-			creature.Unlock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc | Locks.ChanceStance | Locks.Attack);
+			creature.Unlock(Locks.Walk | Locks.Run | Locks.PickUpAndDrop | Locks.TalkToNpc | Locks.ChanceStance | Locks.Attack | Locks.ChangeEquipment);
 		}
 
 		/// <summary>

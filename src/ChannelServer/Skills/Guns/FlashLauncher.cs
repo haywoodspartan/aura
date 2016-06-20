@@ -176,7 +176,7 @@ namespace Aura.Channel.Skills.Guns
 			// Defense and Prot
 			SkillHelper.HandleDefenseProtection(target, ref damage);
 
-			// Heavy Stander
+			// Heavy Stander - Flash Launcher counts as a melee skill.
 			HeavyStander.Handle(attacker, target, ref damage, tAction);
 
 			// Mana Shield

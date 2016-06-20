@@ -480,20 +480,23 @@ namespace Aura.Channel.Skills
 		public SkillId AttackerSkillId { get; set; }
 
 		/// <summary>
-		/// Hit count of MultiHit action
+		/// Number of hits shown by the action
 		/// </summary>
 		/// <remarks>
 		/// Only used with MultiHit TargetOption
+		/// Example: If MultiHitCount is set to 4, there will be 4 damage numbers shown for the attack.
 		/// </remarks>
-		public int MultiHitDamageCount { get; set; }
+		public int MultiHitCount { get; set; }
 
 		/// <summary>
-		/// ShowTime of MultiHit TargetOption
+		/// Amount of time between each hit in the MultiHit action (ms)
 		/// </summary>
 		/// <remarks>
 		/// Functions similarly to Delay
+		/// Example: If the interval is set to 95, there will be 95ms
+		/// time between each visual damage number for the attack.
 		/// </remarks>
-		public int MultiHitDamageShowTime { get; set; }
+		public int MultiHitInterval { get; set; }
 
 		/// <summary>
 		/// Used in MultiHit TargetOption

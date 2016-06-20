@@ -175,12 +175,12 @@ namespace Aura.Channel.Skills.Guns
 			var newAttackerPos = targetPos.GetRelative(attackerPos, (LandingDistance * -1)); // Only moves to the target until a certain distance
 
 			// Effects to attacker
+			float distance = attackerPos.GetDistance(targetPos);
 			int startingDelay = 434;
-			int unk1 = 429; // Needs to be calculated somehow....
+			int unk1 = (int)(distance / 1.67); // In all logs, (distance / unk1) roughly equated to 1.67 | unk1 = (distance / 1.67)
 			int unk2 = unk1 + 500;
 			int secondDelay = startingDelay + unk1;
 			int thirdDelay = secondDelay + 500;
-			float distance = attackerPos.GetDistance(targetPos);
 
 			Send.Effect(attacker, Effect.GrappleShot, (byte)1, targetEntityId, startingDelay, unk1); // Grapple Graphic Effect
 			Send.EffectDelayed(attacker, startingDelay, Effect.GrappleShot, (byte)2, unk2, distance, (float)newAttackerPos.X, (float)newAttackerPos.Y); // Grapple shooting motion

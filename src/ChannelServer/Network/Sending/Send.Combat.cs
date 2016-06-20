@@ -145,8 +145,8 @@ namespace Aura.Channel.Network.Sending
 
 					if ((tAction.Options & TargetOptions.MultiHit) != 0)
 					{
-						actionPacket.PutUInt((uint)tAction.MultiHitDamageCount); // MultiHitDamageCount
-						actionPacket.PutUInt((uint)tAction.MultiHitDamageShowTime); // MultiHitDamageShowTime
+						actionPacket.PutUInt((uint)tAction.MultiHitCount); // MultiHitCount
+						actionPacket.PutUInt((uint)tAction.MultiHitInterval); // MultiHitInterval
 						actionPacket.PutUInt((uint)tAction.MultiHitUnk1); // ??? Only seen value has been 0
 						actionPacket.PutUInt((uint)tAction.MultiHitUnk2); // Divides Multi Hit Damage? Possibly MultiHit Options.
 					}

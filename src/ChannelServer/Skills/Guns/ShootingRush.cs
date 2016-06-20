@@ -238,14 +238,14 @@ namespace Aura.Channel.Skills.Guns
 				var tAction = new TargetAction(CombatActionType.SkillActiveHit, target, attacker, SkillId.None);
 				tAction.Set(TargetOptions.Result | TargetOptions.MultiHit);
 				tAction.AttackerSkillId = skill.Info.Id;
-				tAction.MultiHitDamageCount = 4;
-				tAction.MultiHitDamageShowTime = 300;
-				tAction.MultiHitUnk1 = 0;
-				tAction.MultiHitUnk2 = 404166685;
-                cap.Add(tAction);
+				tAction.MultiHitCount = 4;
+				tAction.MultiHitInterval = 300;
+				tAction.MultiHitUnk1 = 0; // Explicitly set until MultiHit options are fully understood.
+				tAction.MultiHitUnk2 = 404166685; // Explicitly set until MultiHit options are fully understood.
+				cap.Add(tAction);
 
 				// Damage
-				var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f)) * tAction.MultiHitDamageCount;
+				var damage = (attacker.GetRndDualGunDamage() * (skill.RankData.Var2 / 100f)) * tAction.MultiHitCount;
 
 				// Master Title
 				if (attacker.Titles.SelectedTitle == skill.Data.MasterTitle)

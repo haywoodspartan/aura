@@ -227,10 +227,10 @@ namespace Aura.Channel.Skills.Guns
 				var tAction = new TargetAction(CombatActionType.TakeHit, target, attacker, SkillId.CombatMastery);
 				tAction.Set(TargetOptions.Result | TargetOptions.MultiHit);
 				tAction.AttackerSkillId = skill.Info.Id;
-				tAction.MultiHitDamageCount = 4;
-				tAction.MultiHitDamageShowTime = 95;
-				tAction.MultiHitUnk1 = 0;
-				tAction.MultiHitUnk2 = 421075482;
+				tAction.MultiHitCount = 4;
+				tAction.MultiHitInterval = 95;
+				tAction.MultiHitUnk1 = 0; // Explicitly set until MultiHit options are fully understood.
+				tAction.MultiHitUnk2 = 421075482; // Explicitly set until MultiHit options are fully understood.
 				cap.Add(tAction);
 
 				/// Damage is calculated as (Skill Rank Damage per Target [var2 (for 4 bullets?)] * Number of Targets)

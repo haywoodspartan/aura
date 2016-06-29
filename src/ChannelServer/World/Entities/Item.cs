@@ -93,6 +93,38 @@ namespace Aura.Channel.World.Entities
 		public string Bank { get; set; }
 
 		/// <summary>
+		/// Time at which the current transfer, if any, started.
+		/// </summary>
+		/// <remarks>
+		/// TODO: Make a new base class BankItem and restructure the db,
+		///   to have one item table, that other tables can reference?
+		///   (E.g. inventory, bank, mail, etc.)
+		/// </remarks>
+		public DateTime BankTransferStart { get; set; }
+
+		/// <summary>
+		/// Duration of the current transfer.
+		/// </summary>
+		public int BankTransferDuration { get; set; }
+
+		/// <summary>
+		/// Milliseconds remaining until item arrives at new bank.
+		/// </summary>
+		public int BankTransferRemaining
+		{
+			get
+			{
+				var now = DateTime.Now;
+				var end = this.BankTransferStart.AddMilliseconds(this.BankTransferDuration);
+
+				if (end > now)
+					return (int)(end - now).TotalMilliseconds;
+				else
+					return 0;
+			}
+		}
+
+		/// <summary>
 		/// Returns item's quality on a scale from 0 to 100. (Used for food.)
 		/// </summary>
 		public int Quality
@@ -362,7 +394,7 @@ namespace Aura.Channel.World.Entities
 					{
 						var data = AuraData.OptionSetDb.Find(dropData.Prefix);
 						if (data == null) throw new ArgumentException("Option set doesn't exist: " + dropData.Prefix);
-						if (data.Category != OptionSetCategory.Prefix) throw new ArgumentException("Option set is not a prefix.");
+						if (data.Category != OptionSetCategory.Prefix) throw new ArgumentException("Option set " + dropData.Prefix + " is not a prefix.");
 
 						this.MetaData1.SetInt("ENPFIX", dropData.Prefix);
 					}
@@ -372,7 +404,7 @@ namespace Aura.Channel.World.Entities
 					{
 						var data = AuraData.OptionSetDb.Find(dropData.Suffix);
 						if (data == null) throw new ArgumentException("Option set doesn't exist: " + dropData.Suffix);
-						if (data.Category != OptionSetCategory.Suffix) throw new ArgumentException("Option set is not a suffix.");
+						if (data.Category != OptionSetCategory.Suffix) throw new ArgumentException("Option set " + dropData.Suffix + " is not a suffix.");
 
 						this.MetaData1.SetInt("ENSFIX", dropData.Suffix);
 					}
@@ -512,7 +544,7 @@ namespace Aura.Channel.World.Entities
 				if (data == null)
 					throw new ArgumentException("Option set doesn't exist: " + prefix);
 				if (data.Category != OptionSetCategory.Prefix)
-					throw new ArgumentException("Option set is not a suffix.");
+					throw new ArgumentException("Option set " + prefix + " is not a prefix.");
 
 				this.OptionInfo.Prefix = (ushort)prefix;
 				this.ApplyOptionSet(data, true);
@@ -525,7 +557,7 @@ namespace Aura.Channel.World.Entities
 				if (data == null)
 					throw new ArgumentException("Option set doesn't exist: " + suffix);
 				if (data.Category != OptionSetCategory.Suffix)
-					throw new ArgumentException("Option set is not a suffix.");
+					throw new ArgumentException("Option set " + suffix + " is not a suffix.");
 
 				this.OptionInfo.Suffix = (ushort)suffix;
 				this.ApplyOptionSet(data, true);
@@ -580,7 +612,7 @@ namespace Aura.Channel.World.Entities
 			{
 				prefixData = AuraData.OptionSetDb.Find(prefix);
 				if (prefixData == null) throw new ArgumentException("Option set doesn't exist: " + prefix);
-				if (prefixData.Category != OptionSetCategory.Prefix) throw new ArgumentException("Option set is not a prefix.");
+				if (prefixData.Category != OptionSetCategory.Prefix) throw new ArgumentException("Option set " + prefix + " is not a prefix.");
 
 				if (itemId == 0)
 					itemId = prefixData.ItemId;
@@ -591,7 +623,7 @@ namespace Aura.Channel.World.Entities
 			{
 				suffixData = AuraData.OptionSetDb.Find(suffix);
 				if (suffixData == null) throw new ArgumentException("Option set doesn't exist: " + suffix);
-				if (suffixData.Category != OptionSetCategory.Suffix) throw new ArgumentException("Option set is not a suffix.");
+				if (suffixData.Category != OptionSetCategory.Suffix) throw new ArgumentException("Option set " + suffix + " is not a suffix.");
 
 				if (itemId == 0)
 					itemId = suffixData.ItemId;
@@ -1196,6 +1228,30 @@ namespace Aura.Channel.World.Entities
 			if (result == 0)
 				result = 1;
 
+			// Increase for collection upgrades
+			var collectionSpeed = this.MetaData1.GetInt("CTSPEED");
+			var collectionBonus = this.MetaData1.GetShort("CTBONUS");
+
+			if (collectionSpeed != 0)
+			{
+				if (collectionSpeed < 250)
+					result = (int)(result * 1.7f);
+				else if (collectionSpeed < 500)
+					result = (int)(result * 1.7f * 1.7f);
+				else if (collectionSpeed < 750)
+					result = (int)(result * 1.7f * 1.7f * 1.7f);
+				else
+					result = (int)(result * 1.7f * 1.7f * 1.7f * 1.7f);
+			}
+
+			if (collectionSpeed > 1000 || collectionBonus != 0)
+			{
+				if (this.Info.Id == 40023) // Gathering Knife
+					result *= 10;
+				else
+					result *= 2;
+			}
+
 			return result * points;
 		}
 
@@ -1427,5 +1483,88 @@ namespace Aura.Channel.World.Entities
 
 			return true;
 		}
+
+		/// <summary>
+		/// Returns the amount of proficiency items gain for the given
+		/// age and type.
+		/// </summary>
+		/// <param name="age"></param>
+		/// <param name="type"></param>
+		/// <returns></returns>
+		public static int GetProficiencyGain(int age, ProficiencyGainType type)
+		{
+			switch (type)
+			{
+				case ProficiencyGainType.Melee:
+					if (age >= 10 && age <= 12)
+						return 48;
+					else if (age >= 13 && age <= 19)
+						return 60;
+					else
+						return 72;
+
+				case ProficiencyGainType.Ranged:
+					if (age == 10)
+						return 60;
+					else if (age >= 11 && age <= 15)
+						return 72;
+					else if (age >= 16 && age <= 19)
+						return 84;
+					else if (age >= 20 && age <= 24)
+						return 96;
+					else
+						return 108;
+
+				case ProficiencyGainType.Gathering:
+					if (age >= 10 && age <= 15)
+						return 96;
+					else
+						return 114;
+
+				case ProficiencyGainType.Music:
+					if (age >= 10 && age <= 15)
+						return 6;
+					else
+						return 12;
+
+				case ProficiencyGainType.Damage:
+					if (age >= 10 && age <= 12)
+						return 16;
+					else if (age >= 13 && age <= 19)
+						return 20;
+					else
+						return 24;
+
+				case ProficiencyGainType.Time:
+					if (age >= 10 && age <= 12)
+						return 60;
+					else if (age >= 13 && age <= 19)
+						return 75;
+					else
+						return 90;
+
+				case ProficiencyGainType.Defend:
+					if (age >= 10 && age <= 12)
+						return 240;
+					else if (age >= 13 && age <= 19)
+						return 300;
+					else
+						return 360;
+
+				default:
+					throw new ArgumentException("Unknown type '" + type + "'.");
+			}
+		}
+	}
+
+	public enum ProficiencyGainType
+	{
+		Melee,
+		Ranged,
+		Gathering,
+		Music,
+		Damage,
+		Time,
+		Defend,
 	}
 }

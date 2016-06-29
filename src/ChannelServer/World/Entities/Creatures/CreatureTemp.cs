@@ -72,5 +72,8 @@ namespace Aura.Channel.World.Entities.Creatures
 		public string CookingMethod;
 
 		public object CounterSyncLock = new object();
+
+		public string CurrentBankId;
+		public string CurrentBankTitle;
 	}
 }

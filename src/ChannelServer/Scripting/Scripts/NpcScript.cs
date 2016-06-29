@@ -195,25 +195,26 @@ namespace Aura.Channel.Scripting.Scripts
 				default:
 					if (this.NPC.IsMale)
 					{
-						this.Close(Hide.None, "(I don't think he can understand me)");
+						this.Close(Hide.None, Localization.Get("(I don't think he can understand me.)"));
 						break;
 					}
 					else if (this.NPC.IsFemale)
 					{
-						this.Close(Hide.None, "(I don't think she can understand me)");
+						this.Close(Hide.None, Localization.Get("(I don't think she can understand me.)"));
+						break;
+					}
+					else if (this.NPC.HasTag("/prop/"))
+					{
+						this.Close(Hide.None, Localization.Get("(I don't think I can talk to this.)"));
 						break;
 					}
 
 					// Go to next case if gender isn't clear
 					goto case 1;
 
-				case 1: this.Close(Hide.None, "(This conversation doesn't seem to be going anywhere.)"); break;
-				case 2: this.Close(Hide.None, "(I don't think we'll see things eye to eye.)"); break;
+				case 1: this.Close(Hide.None, Localization.Get("(This conversation doesn't seem to be going anywhere.)")); break;
+				case 2: this.Close(Hide.None, Localization.Get("(I don't think we'll see things eye to eye.)")); break;
 			}
-
-			// Messages for "things", like book shelves.
-			//this.Close("<title name='NONE'/>(I don't think I can talk to this.)");
-			//this.Close("<title name='NONE'/>(I don't think we'll see things eye to eye.)");
 
 			await Task.Yield();
 		}
@@ -814,6 +815,12 @@ namespace Aura.Channel.Scripting.Scripts
 			if (item != null)
 				item.Info.State = 1;
 			item = this.NPC.Inventory.GetItemAt(Pocket.RobeStyle, 0, 0);
+			if (item != null)
+				item.Info.State = 1;
+			item = this.NPC.Inventory.GetItemAt(Pocket.Armor, 0, 0);
+			if (item != null)
+				item.Info.State = 1;
+			item = this.NPC.Inventory.GetItemAt(Pocket.ArmorStyle, 0, 0);
 			if (item != null)
 				item.Info.State = 1;
 		}
@@ -1561,9 +1568,28 @@ namespace Aura.Channel.Scripting.Scripts
 		/// <summary>
 		/// Opens bank window.
 		/// </summary>
-		public void OpenBank()
+		/// <param name="bankId">The unique identifier for the bank to open.</param>
+		/// <param name="bankTitle">The title of the bank to open.</param>
+		public void OpenBank(string bankId)
 		{
-			Send.OpenBank(this.Player, this.Player.Client.Account.Bank, BankTabRace.Human);
+			// Previously we used these two for id and title, which allowed
+			// access to anything from anywhere. Make this an option?
+			//packet.PutString("Global");
+			//packet.PutString("Bank");
+
+			if (!AuraData.BankDb.Exists(bankId))
+			{
+				Log.Warning("OpenBank: Unknown bank '{0}'", bankId);
+				this.Msg(string.Format("(Error: Unknown bank '{0}')", bankId));
+				return;
+			}
+
+			var bankTitle = BankInventory.GetName(bankId);
+
+			this.Player.Temp.CurrentBankId = bankId;
+			this.Player.Temp.CurrentBankTitle = bankTitle;
+
+			Send.OpenBank(this.Player, this.Player.Client.Account.Bank, BankTabRace.Human, bankId, bankTitle);
 		}
 
 		/// <summary>
@@ -2227,6 +2253,8 @@ namespace Aura.Channel.Scripting.Scripts
 		public DialogShowDirection ShowDirection(int x, int y, int angle) { return new DialogShowDirection(x, y, angle); }
 
 		public DialogSetDefaultName SetDefaultName(string name) { return new DialogSetDefaultName(name); }
+
+		public DialogSelectItem SelectItem(string title, string caption, string tags) { return new DialogSelectItem(title, caption, tags); }
 
 		// ------------------------------------------------------------------
 

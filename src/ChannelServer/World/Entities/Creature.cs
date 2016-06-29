@@ -199,6 +199,53 @@ namespace Aura.Channel.World.Entities
 			}
 		}
 
+		/// <summary>
+		/// The outfit Nao wears when reviving the creature.
+		/// </summary>
+		public NaoOutfit NaoOutfit { get; set; }
+
+
+		/// <summary>
+		/// Returns true if creature has ever set foot in any actual region.
+		/// </summary>
+		/// <returns></returns>
+		public bool HasEverEnteredWorld
+		{
+			get { return this.Has(CreatureStates.EverEnteredWorld); }
+		}
+
+		/// <summary>
+		/// Returns true if it's the creature's birthday and it hasn't
+		/// received a birthday present yet today.
+		/// </summary>
+		/// <returns></returns>
+		public bool CanReceiveBirthdayPresent
+		{
+			get
+			{
+				// Only players with active premium service can receive gifts.
+				if (!this.Client.Account.PremiumServices.HasPremiumService)
+					return false;
+
+				var now = DateTime.Now;
+
+				// No present if today is not the player's birthday or the character
+				// was just created.
+				var isBirthday = (this.CreationTime.DayOfWeek == now.DayOfWeek);
+				var isBirth = (this.CreationTime.Date == now.Date);
+				if (!isBirthday || isBirth)
+					return false;
+
+				// If no last date, we never got one before and get it now.
+				var last = this.Vars.Perm["NaoLastPresentDate"];
+				if (last == null)
+					return true;
+
+				// Only allow present if player didn't already receive one today.
+				return (last.Date < now.Date);
+			}
+		}
+
 		// Look
 		// ------------------------------------------------------------------
 
@@ -1369,70 +1416,67 @@ namespace Aura.Channel.World.Entities
 		}
 
 		/// <summary>
-		/// Called regularly to reduce equipments durability.
+		/// Called regularly to reduce equipments durability and give
+		/// proficiency to armors.
 		/// </summary>
 		/// <remarks>
 		/// http://wiki.mabinogiworld.com/view/Durability#Per_Tick
-		/// The loss actually doesn't seem to be fixed, I've logged
+		/// http://wiki.mabinogiworld.com/view/Proficiency
+		/// 
+		/// The dura loss actually doesn't seem to be fixed, I've logged
 		/// varying values on NA. However, *most* of the time the
 		/// values below are used.
 		/// </remarks>
 		private void EquipmentDecay()
 		{
-			if (ChannelServer.Instance.Conf.World.NoDurabilityLoss)
-				return;
-
-			var equipment = this.Inventory.GetEquipment();
+			var equipment = this.Inventory.GetMainEquipment(a => a.Durability > 0);
 			var update = new List<Item>();
-			var loss = 0;
 
-			foreach (var item in equipment.Where(a => a.Durability > 0))
+			foreach (var item in equipment)
 			{
-				// Going by the name, I assume items with this tag don't lose
-				// durability regularly.
-				if (item.HasTag("/no_abrasion/"))
-					continue;
-
-				switch (item.Info.Pocket)
+				// Dura loss
+				// Going by the name "no_abrasion", I assume items with this
+				// tag don't lose durability regularly.
+				if (!ChannelServer.Instance.Conf.World.NoDurabilityLoss && !item.HasTag("/no_abrasion/"))
 				{
-					case Pocket.Head: loss = 3; break;
-					case Pocket.Armor: loss = 16; break; // 6
-					case Pocket.Shoe: loss = 14; break; // 13
-					case Pocket.Glove: loss = 10; break; // 9
-					case Pocket.Robe: loss = 10; break;
+					var loss = 0;
 
-					case Pocket.RightHand1:
-						if (this.Inventory.WeaponSet != WeaponSet.First)
-							continue;
-						loss = 3;
-						break;
-					case Pocket.RightHand2:
-						if (this.Inventory.WeaponSet != WeaponSet.Second)
-							continue;
-						loss = 3;
-						break;
+					switch (item.Info.Pocket)
+					{
+						case Pocket.Head: loss = 3; break;
+						case Pocket.Armor: loss = 16; break; // 6
+						case Pocket.Shoe: loss = 14; break; // 13
+						case Pocket.Glove: loss = 10; break; // 9
+						case Pocket.Robe: loss = 10; break;
 
-					case Pocket.LeftHand1:
-						if (this.Inventory.WeaponSet != WeaponSet.First)
-							continue;
-						loss = 6;
-						break;
-					case Pocket.LeftHand2:
-						if (this.Inventory.WeaponSet != WeaponSet.Second)
-							continue;
-						loss = 6;
-						break;
+						case Pocket.RightHand1:
+						case Pocket.RightHand2:
+							loss = 3;
+							break;
 
-					default:
-						continue;
+						case Pocket.LeftHand1:
+						case Pocket.LeftHand2:
+							loss = 6;
+							break;
+					}
+
+					if (loss != 0)
+					{
+						// Half dura loss if blessed
+						if (item.IsBlessed)
+							loss = Math.Max(1, loss / 2);
+
+						item.Durability -= loss;
+						update.Add(item);
+					}
 				}
 
-				// Half dura loss if blessed
-				if (item.IsBlessed)
-					loss = Math.Max(1, loss / 2);
-
-				item.Durability -= loss;
-				update.Add(item);
+				// Armor prof
+				if (item.Durability != 0 && item.Info.Pocket.IsMainArmor())
+				{
+					var amount = Item.GetProficiencyGain(this.Age, ProficiencyGainType.Time);
+					this.Inventory.AddProficiency(item, amount);
+				}
 			}
 
 			if (update.Count != 0)
@@ -1893,6 +1937,28 @@ namespace Aura.Channel.World.Entities
 				_totalHits = Interlocked.Increment(ref _totalHits);
 			}
 
+			var equip = this.Inventory.GetEquipment();
+
+			// Give proficiency to random main armor
+			var mainArmors = equip.Where(a => a.Info.Pocket.IsMainArmor());
+			if (mainArmors.Count() != 0)
+			{
+				var item = mainArmors.Random();
+				var amount = Item.GetProficiencyGain(this.Age, ProficiencyGainType.Damage);
+				this.Inventory.AddProficiency(item, amount);
+			}
+
+			// Reduce durability of random item
+			if (!ChannelServer.Instance.Conf.World.NoDurabilityLoss)
+			{
+				if (equip.Length != 0)
+				{
+					var item = equip.Random();
+					var amount = RandomProvider.Get().Next(1, 30);
+					this.Inventory.ReduceDurability(item, amount);
+				}
+			}
+
 			// Kill if life too low
 			if (this.Life < 0 && !this.ShouldSurvive(damage, from, lifeBefore))
 				this.Kill(from);
@@ -2059,9 +2125,9 @@ namespace Aura.Channel.World.Entities
 
 				// Tuesday: Increase in dungeon item drop rate.
 				// Wednesday: Increase in item drop rate from animals and nature.
-				// +5%, bonus is unofficial.
+				// +50%, bonus is unofficial.
 				if ((month == ErinnMonth.Baltane && this.Region.IsDungeon) || (month == ErinnMonth.AlbanHeruin && !this.Region.IsDungeon))
-					dropRate += 5;
+					dropRate *= 1.5f;
 
 				if (dropChance < dropRate)
 				{
@@ -2070,6 +2136,63 @@ namespace Aura.Channel.World.Entities
 						continue;
 
 					var item = new Item(dropData);
+
+					// Equip stat modification
+					// http://wiki.mabinogiworld.com/view/Category:Weapons
+					if (item.HasTag("/righthand/weapon/|/twohand/weapon/"))
+					{
+						var num = rnd.Next(100);
+
+						// Durability
+						if (num == 0)
+							item.OptionInfo.DurabilityMax += 4000;
+						else if (num <= 5)
+							item.OptionInfo.DurabilityMax += 3000;
+						else if (num <= 10)
+							item.OptionInfo.DurabilityMax += 2000;
+						else if (num <= 25)
+							item.OptionInfo.DurabilityMax += 1000;
+
+						// Attack
+						if (num == 0)
+						{
+							item.OptionInfo.AttackMin += 3;
+							item.OptionInfo.AttackMax += 3;
+						}
+						else if (num <= 30)
+						{
+							item.OptionInfo.AttackMin += 2;
+							item.OptionInfo.AttackMax += 2;
+						}
+						else if (num <= 60)
+						{
+							item.OptionInfo.AttackMin += 1;
+							item.OptionInfo.AttackMax += 1;
+						}
+
+						// Crit
+						if (num == 0)
+							item.OptionInfo.Critical += 3;
+						else if (num <= 30)
+							item.OptionInfo.Critical += 2;
+						else if (num <= 60)
+							item.OptionInfo.Critical += 1;
+
+						// Balance
+						if (num == 0)
+							item.OptionInfo.Balance = (byte)Math.Max(0, item.OptionInfo.Balance - 12);
+						else if (num <= 10)
+							item.OptionInfo.Balance = (byte)Math.Max(0, item.OptionInfo.Balance - 10);
+						else if (num <= 30)
+							item.OptionInfo.Balance = (byte)Math.Max(0, item.OptionInfo.Balance - 8);
+						else if (num <= 50)
+							item.OptionInfo.Balance = (byte)Math.Max(0, item.OptionInfo.Balance - 6);
+						else if (num <= 70)
+							item.OptionInfo.Balance = (byte)Math.Max(0, item.OptionInfo.Balance - 4);
+						else if (num <= 90)
+							item.OptionInfo.Balance = (byte)Math.Max(0, item.OptionInfo.Balance - 2);
+					}
+
 					item.Drop(this.Region, pos, Item.DropRadius, killer, false);
 
 					dropped.Add(dropData.ItemId);
@@ -2470,7 +2593,7 @@ namespace Aura.Channel.World.Entities
 
 		/// <summary>
 		/// Calculates right (or bare) hand crit chance, taking stat bonuses
-		/// and given protection into consideration.
+		/// and given protection into consideration. Capped at 0~30.
 		/// </summary>
 		/// <param name="protection"></param>
 		/// <returns></returns>
@@ -2482,7 +2605,7 @@ namespace Aura.Channel.World.Entities
 
 		/// <summary>
 		/// Calculates left hand crit chance, taking stat bonuses
-		/// and given protection into consideration.
+		/// and given protection into consideration. Capped at 0~30.
 		/// </summary>
 		/// <param name="protection"></param>
 		/// <returns></returns>
@@ -2497,6 +2620,7 @@ namespace Aura.Channel.World.Entities
 		/// <summary>
 		/// Calculates total crit chance, taking stat bonuses
 		/// and given protection and bonus into consideration.
+		///  Capped at 0~30.
 		/// </summary>
 		/// <param name="protection">Protection to subtract from crit.</param>
 		/// <returns></returns>
@@ -2508,6 +2632,7 @@ namespace Aura.Channel.World.Entities
 		/// <summary>
 		/// Calculates total crit chance, taking stat bonuses
 		/// and given protection and bonus into consideration.
+		/// Capped at 0~30.
 		/// </summary>
 		/// <param name="protection">Protection to subtract from crit.</param>
 		/// <param name="magic">If true, weapon crit bonuses only apply if weapon is a wand.</param>
@@ -2537,7 +2662,7 @@ namespace Aura.Channel.World.Entities
 
 		/// <summary>
 		/// Adds stat bonuses to base and calculates crit chance,
-		/// taking protection into consideration.
+		/// taking protection into consideration. Capped at 0~30.
 		/// </summary>
 		/// <param name="baseCritical"></param>
 		/// <param name="protection"></param>
@@ -2554,7 +2679,7 @@ namespace Aura.Channel.World.Entities
 
 			baseCritical -= protection;
 
-			return Math.Max(0, baseCritical);
+			return Math2.Clamp(0, 30, baseCritical);
 		}
 
 		/// <summary>

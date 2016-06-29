@@ -227,6 +227,7 @@ namespace Aura.Channel.Database
 					character.Age = reader.GetInt16("age");
 					character.State = (CreatureStates)reader.GetUInt32("state");
 					character.LastTown = reader.GetStringSafe("lastTown");
+					character.NaoOutfit = (NaoOutfit)reader.GetByte("naoOutfit");
 
 					var invWidth = reader.GetByte("inventoryWidth");
 					var invHeight = reader.GetByte("inventoryHeight");
@@ -416,6 +417,8 @@ namespace Aura.Channel.Database
 
 							var item = new Item(itemId, entityId);
 							item.Bank = reader.GetStringSafe("bank");
+							item.BankTransferStart = reader.GetDateTimeSafe("bankTransferStart");
+							item.BankTransferDuration = reader.GetInt32("bankTransferDuration");
 							item.Info.Pocket = (Pocket)reader.GetInt32("pocket");
 							item.Info.X = reader.GetInt32("x");
 							item.Info.Y = reader.GetInt32("y");
@@ -1013,6 +1016,7 @@ namespace Aura.Channel.Database
 				cmd.Set("age", creature.Age);
 				cmd.Set("rebirthCount", creature.RebirthCount);
 				cmd.Set("lastTown", creature.LastTown);
+				cmd.Set("naoOutfit", (byte)creature.NaoOutfit);
 				cmd.Set("inventoryWidth", creature.InventoryWidth);
 				cmd.Set("inventoryHeight", creature.InventoryHeight);
 
@@ -1127,6 +1131,11 @@ namespace Aura.Channel.Database
 							cmd.Set("entityId", item.EntityId);
 						cmd.Set("itemId", item.Info.Id);
 						cmd.Set("bank", item.Bank);
+						if (item.BankTransferStart == DateTime.MinValue)
+							cmd.Set("bankTransferStart", null);
+						else
+							cmd.Set("bankTransferStart", item.BankTransferStart);
+						cmd.Set("bankTransferDuration", item.BankTransferDuration);
 						cmd.Set("pocket", (byte)item.Info.Pocket);
 						cmd.Set("x", item.Info.X);
 						cmd.Set("y", item.Info.Y);

@@ -338,7 +338,7 @@ public class TitleRewardingScript : GeneralScript
 					// If the member's tracker has a lower id than that of the
 					// dead creature, the member attacked first.
 					var memberTracker = killer.GetHitTracker(member.EntityId);
-					if (memberTracker.Id < deadTracker.Id)
+					if (memberTracker != null && memberTracker.Id < deadTracker.Id)
 						deadCreature.Titles.Enable(57);
 				}
 			}
@@ -436,7 +436,7 @@ public class TitleRewardingScript : GeneralScript
 			// Maybe the temp variable FireArrow could be used for this,
 			// but this is safer, no risk of the variable being reset,
 			// or still being set when it shouldn't be.
-			if (killer.RightHand != null && killer.RightHand.HasTag("/bow/") && Campfire.GetNearbyCampfire(killer, 500) != null)
+			if (killer.RightHand != null && killer.RightHand.HasTag("/bow/|/bow01/") && Campfire.GetNearbyCampfire(killer, 500) != null)
 				killer.Titles.Enable(88);
 		}
 	}

@@ -63,7 +63,7 @@ namespace Aura.Channel.Network.Handlers
 			}
 
 			// Check character
-			var character = account.GetCharacterOrPetSafe(characterId);
+			var character = account.GetCharacterOrPetSafe(characterId) as Creature;
 
 			// Free premium
 			account.PremiumServices.EvaluateFreeServices(ChannelServer.Instance.Conf.Premium);
@@ -75,21 +75,20 @@ namespace Aura.Channel.Network.Handlers
 
 			client.State = ClientState.LoggedIn;
 
+			// Per-character specific initialization
+			NPC npcchar = character as NPC;
+			if (npcchar != null && npcchar.OnNPCLoggedIn != null)
+			{
+				// Seems like officials send here packet-per-packet adding equipment,
+				// skills and probably other initialization info for RP NPCs
+				// Long story short, a lot of StatUpdate, SkillRankUp, ItemNew, etc. packets
+				npcchar.OnNPCLoggedIn();
+			}
+
 			Send.ChannelLoginR(client, character.EntityId);
 
-			// Log into world
-			if (character.Has(CreatureStates.Initialized))
-			{
-				// Fallback for invalid region ids, like 0, dynamics, and dungeons.
-				if (character.RegionId == 0 || Math2.Between(character.RegionId, 35000, 40000) || Math2.Between(character.RegionId, 10000, 11000))
-					character.SetLocation(1, 12800, 38100);
-
-				character.Activate(CreatureStates.EverEnteredWorld);
-
-				character.Warp(character.GetLocation());
-			}
-			// Special login to Soul Stream for new chars
-			else
+			// Special login to Soul Stream for new chars and on birthdays
+			if (!character.Has(CreatureStates.Initialized) || character.CanReceiveBirthdayPresent)
 			{
 				var npcEntityId = (character.IsCharacter ? MabiId.Nao : MabiId.Tin);
 				var npc = ChannelServer.Instance.World.GetCreature(npcEntityId);
@@ -100,6 +99,15 @@ namespace Aura.Channel.Network.Handlers
 				character.Activate(CreatureStates.Initialized);
 
 				Send.SpecialLogin(character, 1000, 3200, 3200, npcEntityId);
+			}
+			// Log into world
+			else
+			{
+				// Fallback for invalid region ids, like 0, dynamics, and dungeons.
+				if (character.RegionId == 0 || Math2.Between(character.RegionId, 35000, 40000) || Math2.Between(character.RegionId, 10000, 11000))
+					character.SetLocation(1, 12800, 38100);
+
+				character.Warp(character.GetLocation());
 			}
 		}
 
@@ -216,6 +224,9 @@ namespace Aura.Channel.Network.Handlers
 			// Infamous 5209, aka char info
 			Send.ChannelCharacterInfoRequestR(client, creature);
 
+			// Send any necessary "feature enabled" packets, grant extra items, update quests, etc.
+			ChannelServer.Instance.Events.OnCreatureConnecting(creature);
+
 			// Special treatment for pets
 			if (creature.Master != null)
 			{
@@ -286,8 +297,19 @@ namespace Aura.Channel.Network.Handlers
 			// Update Pon
 			Send.PointsUpdate(creature, creature.Points);
 
+			// Send UrlUpdate packets?
+			// - UrlUpdateChronicle
+			// - UrlUpdateAdvertise
+			// - UrlUpdateGuestbook
+			// - UrlUpdatePvp
+			// - UrlUpdateDungeonBoard
+
 			// Update dead menu, in case creature is dead
 			creature.DeadMenu.Update();
+
+			// Any extra ChannelInfo initialization from scripts
+			// Actual first update of features
+			ChannelServer.Instance.Events.OnCreatureConnected(creature);
 		}
 
 		/// <summary>

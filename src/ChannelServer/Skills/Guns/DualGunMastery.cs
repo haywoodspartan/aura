@@ -155,7 +155,6 @@ namespace Aura.Channel.Skills.Guns
 
 				// Check crit - Way of The Gun applies only to this skill
 				var crit = false;
-				var critSkill = attacker.Skills.Get(SkillId.CriticalHit);
 				if (attacker.Conditions.Has(ConditionsD.WayOfTheGun)) crit = true;
 				else
 				{

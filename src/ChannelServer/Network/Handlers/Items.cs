@@ -419,6 +419,10 @@ namespace Aura.Channel.Network.Handlers
 				return;
 			}
 
+			// Deactivate Way Of The Gun when creature switches weapon sets.
+			if (creature.Conditions.Has(ConditionsD.WayOfTheGun))
+				creature.Conditions.Deactivate(ConditionsD.WayOfTheGun);
+
 			creature.StopMove();
 			creature.Inventory.ChangeWeaponSet(set);
 

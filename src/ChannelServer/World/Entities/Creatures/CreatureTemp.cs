@@ -41,6 +41,9 @@ namespace Aura.Channel.World.Entities.Creatures
 		// Final Hit training counters
 		public int FinalHitKillCount, FinalHitKillCountStrong, FinalHitKillCountAwful, FinalHitKillCountBoss;
 
+		// Way of the Gun training counter
+		public int WOTGKillCount;
+		
 		// Lightning Rod variables
 		public bool LightningRodFullCharge;
 		public DateTime LightningRodPrepareTime;

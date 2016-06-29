@@ -238,6 +238,15 @@ namespace Aura.Mabi.Const
 		PlayerCharacter = 0x40,
 
 		/// <summary>
+		/// ??? (0x11)
+		/// </summary>
+		/// <remarks>
+		/// Seems to make the target use its attacking animation,
+		/// but also take the hit as well.
+		/// </remarks>
+		SkillActiveHit = TakeHit | SkillActive,
+
+		/// <summary>
 		/// Both hit at the same time (0x06)
 		/// </summary>
 		SimultaneousHit = Attacker | Unknown,

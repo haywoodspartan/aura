@@ -1835,6 +1835,45 @@ namespace Aura.Channel.World.Entities
 		}
 
 		/// <summary>
+		/// Calculates damage for dual guns
+		/// </summary>
+		/// <remarks>
+		/// http://wiki.mabinogiworld.com/view/Category:Dual_Guns
+		/// </remarks>
+		/// <returns></returns>
+		public float GetRndDualGunDamage()
+		{
+			// Min and Max from Str and Int stats
+			var minDamage = (float)(this.Str + this.Int) / 6;
+			var maxDamage = (float)(this.Str + this.Int) / 5;
+
+			// Min and Max from Gun item
+			var gunMinDamage = (this.RightHand == null ? 0 : this.RightHand.OptionInfo.AttackMin);
+			var gunMaxDamage = (this.RightHand == null ? 0 : this.RightHand.OptionInfo.AttackMax);
+
+			var totalMinDamage = minDamage + gunMinDamage;
+			var totalMaxDamage = maxDamage + gunMinDamage;
+
+			var addedBulletDamage = 0;
+
+			// Max from Gun Bullet
+			if (this.RightHand != null)
+			{
+				if (this.RightHand.MetaData1.Has("GBAMAX"))
+				{
+					addedBulletDamage = this.RightHand.MetaData1.GetShort("GBAMAX");
+					totalMaxDamage += addedBulletDamage;
+				}
+			}
+
+			// Balance
+			var balance = (this.RightHand == null ? this.BalanceBase + this.BalanceBaseMod : this.RightHand.OptionInfo.Balance);
+
+			// Damage
+			return this.GetRndDamage(totalMinDamage, totalMaxDamage, balance);
+		}
+
+		/// <summary>
 		/// Returns random base damage for a ranged attack,
 		/// e.g. Ranged Attack or Magnum Shot, based on race, weapon, etc.
 		/// </summary>

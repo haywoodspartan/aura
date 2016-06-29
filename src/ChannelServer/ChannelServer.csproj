@@ -182,6 +182,14 @@
     <Compile Include="Skills\Combat\Stomp.cs" />
     <Compile Include="Skills\Combat\SuperWindmill.cs" />
     <Compile Include="Skills\Combat\Windmill.cs" />
+    <Compile Include="Skills\Guns\BulletSlide.cs" />
+    <Compile Include="Skills\Guns\BulletStorm.cs" />
+    <Compile Include="Skills\Guns\DualGunMastery.cs" />
+    <Compile Include="Skills\Guns\FlashLauncher.cs" />
+    <Compile Include="Skills\Guns\GrappleShot.cs" />
+    <Compile Include="Skills\Guns\Reload.cs" />
+    <Compile Include="Skills\Guns\ShootingRush.cs" />
+    <Compile Include="Skills\Guns\WayOfTheGun.cs" />
     <Compile Include="Skills\Hidden\BigBlessingWaterKit.cs" />
     <Compile Include="Skills\Hidden\Blessing.cs" />
     <Compile Include="Skills\Hidden\Dye.cs" />

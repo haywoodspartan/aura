@@ -42,6 +42,11 @@ namespace Aura.Data.Database
 		public int SellingPrice { get; set; }
 		public int Durability;
 
+		/// <summary>
+		/// Dual Gun Initial Bullets Max Count
+		/// </summary>
+		public int BulletsMax { get; set; }
+
 		public int Defense { get; set; }
 		public short Protection { get; set; }
 
@@ -201,6 +206,8 @@ namespace Aura.Data.Database
 				info.SplashDamage = entry.ReadFloat("splashDamage");
 				info.StaminaUsage = entry.ReadFloat("staminaUsage");
 			}
+
+			info.BulletsMax = entry.ReadShort("bulletsMax");
 
 			info.DefenseBonusDefault = entry.ReadInt("defenseBonusDefault");
 			info.DefenseBonusMelee = entry.ReadInt("defenseBonusMelee");

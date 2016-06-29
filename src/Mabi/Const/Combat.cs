@@ -240,6 +240,10 @@ namespace Aura.Mabi.Const
 		/// <summary>
 		/// ??? (0x11)
 		/// </summary>
+		/// <remarks>
+		/// Seems to make the target use its attacking animation,
+		/// but also take the hit as well.
+		/// </remarks>
 		SkillActiveHit = TakeHit | SkillActive,
 
 		/// <summary>

@@ -211,14 +211,12 @@ namespace Aura.Channel.Skills.Guns
 
 			// Check crit
 			var crit = false;
-			var critSkill = attacker.Skills.Get(SkillId.CriticalHit);
-			if (critSkill != null && critSkill.Info.Rank > SkillRank.Novice)
+			if (attacker.Skills.Has(SkillId.CriticalHit, SkillRank.RF))
 			{
 				var dgm = attacker.Skills.Get(SkillId.DualGunMastery);
 				var extraCritChance = (dgm == null ? 0 : dgm.RankData.Var6);
-				var critChance = Math2.Clamp(0, 30, attacker.GetTotalCritChance(0) + extraCritChance);
-				if (rnd.NextDouble() * 100 < critChance)
-					crit = true;
+				var critChance = attacker.GetRightCritChance(0) + extraCritChance;
+				crit = (rnd.Next(100) < critChance);
 			}
 
 			// Prepare target actions
@@ -254,12 +252,7 @@ namespace Aura.Channel.Skills.Guns
 
 				// Critical Hit
 				if (crit)
-				{
-					var bonus = critSkill.RankData.Var1 / 100f;
-					damage = damage + (damage * bonus);
-
-					tAction.Set(TargetOptions.Critical);
-				}
+					CriticalHit.Handle(attacker, 100, ref damage, tAction);
 
 				// Defense and Prot
 				SkillHelper.HandleDefenseProtection(target, ref damage);

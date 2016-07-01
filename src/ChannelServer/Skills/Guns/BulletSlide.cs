@@ -53,7 +53,7 @@ namespace Aura.Channel.Skills.Guns
 		/// <summary>
 		/// Distance to Slide
 		/// </summary>
-		private const int SlideDistance = -750;
+		private const int SlideDistance = 550;
 
 		/// <summary>
 		/// Distance to knock back enemy if stability is low enough
@@ -63,7 +63,7 @@ namespace Aura.Channel.Skills.Guns
 		/// <summary>
 		/// Extra attack range for the skill; normal range is too short and gun range is too long.
 		/// </summary>
-		private const int ExtraAttackRange = 100;
+		private const int ExtraAttackRange = 200;
 
 		/// <summary>
 		/// Subscribes handlers to events required for training.
@@ -155,7 +155,7 @@ namespace Aura.Channel.Skills.Guns
 			var targetPos = target.GetPosition();
 			attacker.TurnTo(targetPos);
 			var attackerPos = attacker.GetPosition();
-			var newAttackerPos = attackerPos.GetRelative(targetPos, SlideDistance);
+			var newAttackerPos = targetPos.GetRelative(attackerPos, SlideDistance);
 
 			// Set new attacker position to nearest spot if there is a collision
 			if (attacker.Region.Collisions.Any(attackerPos, newAttackerPos))

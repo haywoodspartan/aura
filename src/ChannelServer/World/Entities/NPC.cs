@@ -43,11 +43,6 @@ namespace Aura.Channel.World.Entities
 		public int SpawnId { get; set; }
 
 		/// <summary>
-		/// List of greetings the NPC uses in conversations.
-		/// </summary>
-		public SortedList<int, List<string>> Greetings { get; set; }
-
-		/// <summary>
 		/// NPCs preferences regarding gifts.
 		/// </summary>
 		public GiftWeightInfo GiftWeights { get; set; }
@@ -80,9 +75,8 @@ namespace Aura.Channel.World.Entities
 			this.Height = this.Weight = this.Upper = this.Lower = 1;
 			this.RegionId = 0;
 			this.Life = this.LifeMaxBase = 1000;
-			this.Color1 = this.Color2 = this.Color2 = 0x808080;
+			this.Color1 = this.Color2 = this.Color3 = 0x808080;
 			this.GiftWeights = new GiftWeightInfo();
-			this.Greetings = new SortedList<int, List<string>>();
 		}
 
 		/// <summary>

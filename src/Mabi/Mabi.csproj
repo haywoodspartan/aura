@@ -40,6 +40,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Const\CharacterStyle.cs" />
     <Compile Include="Const\Combat.cs" />
     <Compile Include="Const\CombatPower.cs" />
     <Compile Include="Const\Conditions.cs" />
@@ -48,6 +49,7 @@
     <Compile Include="Const\Dungeons.cs" />
     <Compile Include="Const\Effects.cs" />
     <Compile Include="Const\Entities.cs" />
+    <Compile Include="Const\Firework.cs" />
     <Compile Include="Const\Items.cs" />
     <Compile Include="Const\Locks.cs" />
     <Compile Include="Const\Login.cs" />

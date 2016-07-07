@@ -844,6 +844,36 @@ namespace Aura.Channel.World.Entities
 		/// </summary>
 		public int ElementIce { get { return (this.RaceData.ElementIce + (int)this.StatMods.Get(Stat.ElementIce)); } }
 
+		/// <summary>
+		/// Creature's toxicity level.
+		/// </summary>
+		public float Toxic { get; set; }
+
+		/// <summary>
+		/// Creature's Str toxicity reduction.
+		/// </summary>
+		public float ToxicStr { get; set; }
+
+		/// <summary>
+		/// Creature's Int toxicity reduction.
+		/// </summary>
+		public float ToxicInt { get; set; }
+
+		/// <summary>
+		/// Creature's Dex toxicity reduction.
+		/// </summary>
+		public float ToxicDex { get; set; }
+
+		/// <summary>
+		/// Creature's Will toxicity reduction.
+		/// </summary>
+		public float ToxicWill { get; set; }
+
+		/// <summary>
+		/// Creature's Luck toxicity reduction.
+		/// </summary>
+		public float ToxicLuck { get; set; }
+
 		// Food Mods
 		// ------------------------------------------------------------------
 
@@ -1150,6 +1180,8 @@ namespace Aura.Channel.World.Entities
 			// Cancel any active skills
 			if (this.Skills.ActiveSkill != null)
 				this.Skills.CancelActiveSkill();
+
+			this.Quests.Dispose();
 		}
 
 		public void Activate(CreatureStates state) { this.State |= state; }
@@ -3336,11 +3368,19 @@ namespace Aura.Channel.World.Entities
 		/// </summary>
 		public void BlessAll()
 		{
-			foreach (var item in this.Inventory.GetMainEquipment())
-			{
+			var items = this.Inventory.GetMainEquipment(a => a.IsBlessable);
+			this.Bless(items);
+		}
+
+		/// <summary>
+		/// Blesses given items and updates client.
+		/// </summary>
+		public void Bless(params Item[] items)
+		{
+			foreach (var item in items)
 				item.OptionInfo.Flags |= ItemFlags.Blessed;
-				Send.ItemBlessed(this, item);
-			}
+
+			Send.ItemBlessed(this, items);
 		}
 
 		/// <summary>

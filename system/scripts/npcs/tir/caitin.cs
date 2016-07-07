@@ -112,7 +112,7 @@ public class CaitinScript : NpcScript
 		{
 			case "personal_info":
 				GiveKeyword("shop_grocery");
-				Msg("My grandmother named me.<br/>I work here at the Grocery Store, so I know one important thing.<br/>You have to eat to survive!<br/>Food helps you regain your Stamina.");
+				Msg(FavorExpression(), "My grandmother named me.<br/>I work here at the Grocery Store, so I know one important thing.<br/>You have to eat to survive!<br/>Food helps you regain your Stamina.");
 				Msg("That doesn't mean you can eat just anything.<br/>You shouldn't have too much greasy food<br/>because you could gain a lot of weight.");
 				Msg("Huh? You have food with you but don't know how to eat it?<br/>Okay, open the Inventory and right-click on the food.<br/>Then, click \"Use\" to eat.<br/>If you have bread in your Inventory, and your Stamina is low,<br/>try eating it now.");
 				ModifyRelation(Random(2), 0, Random(3));
@@ -120,7 +120,7 @@ public class CaitinScript : NpcScript
 
 			case "rumor":
 				GiveKeyword("brook");
-				Msg("Do you know anything about the Adelia Stream?<br/>The river near the Windmill is the Adelia Stream.");
+				Msg(FavorExpression(), "Do you know anything about the Adelia Stream?<br/>The river near the Windmill is the Adelia Stream.");
 				ModifyRelation(Random(2), 0, Random(3));
 				break;
 
@@ -148,10 +148,6 @@ public class CaitinScript : NpcScript
 					// Quest Info: http://pastebin.com/jNaSzq5L
 					// Quest Item: http://pastebin.com/pnGXni41
 				}
-				break;
-
-			case "about_arbeit":
-				Msg("I'm sorry... This isn't the right time for a part-time job.<br/>Please come back later.");
 				break;
 
 			case "shop_misc":

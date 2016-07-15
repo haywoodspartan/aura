@@ -162,7 +162,7 @@ namespace Aura.Channel.Skills.Guns
 			{
 				Position intersection;
 				attacker.Region.Collisions.Find(attackerPos, newAttackerPos, out intersection);
-				newAttackerPos = intersection;
+				newAttackerPos = attackerPos.GetRelative(intersection, -50);
 			}
 
 			Send.ForceRunTo(attacker, newAttackerPos);

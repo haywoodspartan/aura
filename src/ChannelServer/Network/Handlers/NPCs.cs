@@ -19,6 +19,7 @@ using Aura.Channel.Scripting.Scripts;
 using Aura.Channel.World.Inventory;
 using Aura.Mabi.Network;
 using Aura.Mabi;
+using Aura.Shared.Database;
 
 namespace Aura.Channel.Network.Handlers
 {
@@ -312,6 +313,21 @@ namespace Aura.Channel.Network.Handlers
 			// Buy, adding item, and removing currency
 			var success = false;
 
+			// Set guild data
+			if (item.HasTag("/guild_robe/") && creature.Guild != null && creature.Guild.HasRobe)
+			{
+				// EBCL1:4:-11042446;EBCL2:4:-7965756;EBLM1:1:45;EBLM2:1:24;EBLM3:1:6;GLDNAM:s:Name;
+				item.Info.Color1 = creature.Guild.Robe.RobeColor;
+				item.Info.Color2 = GuildRobe.GetColor(creature.Guild.Robe.BadgeColor);
+				item.Info.Color3 = GuildRobe.GetColor(creature.Guild.Robe.EmblemMarkColor);
+				item.MetaData1.SetInt("EBCL1", (int)GuildRobe.GetColor(creature.Guild.Robe.EmblemOutlineColor));
+				item.MetaData1.SetInt("EBCL2", (int)GuildRobe.GetColor(creature.Guild.Robe.StripesColor));
+				item.MetaData1.SetByte("EBLM1", creature.Guild.Robe.EmblemMark);
+				item.MetaData1.SetByte("EBLM2", creature.Guild.Robe.EmblemOutline);
+				item.MetaData1.SetByte("EBLM3", creature.Guild.Robe.Stripes);
+				item.MetaData1.SetString("GLDNAM", creature.Guild.Name);
+			}
+
 			// Cursor
 			if (targetPocket == 0)
 				success = creature.Inventory.Add(item, Pocket.Cursor);
@@ -577,10 +593,52 @@ namespace Aura.Channel.Network.Handlers
 				return;
 			}
 
+			// Check for license
+			var item = creature.Inventory.GetItemSafe(itemEntityId);
+			if (item.HasTag("/personalshoplicense/"))
+			{
+				var amount = item.MetaData1.GetInt("EVALUE");
+				if (amount != 0)
+				{
+					var afterFeeSum = (int)(amount * 0.99f);
+					Send.BankLicenseFeeInquiry(creature, item.EntityId, amount, afterFeeSum);
+					Send.BankDepositItemR(creature, false);
+					return;
+				}
+			}
+
 			// Deposit item
 			var success = client.Account.Bank.DepositItem(creature, itemEntityId, creature.Temp.CurrentBankId, tabName, posX, posY);
 
 			Send.BankDepositItemR(creature, success);
+		}
+
+		/// <summary>
+		/// Sent after accepting fees for license deposition.
+		/// </summary>
+		/// <example>
+		/// 001 [0050000000000AE8] Long   : 22517998136855272
+		/// </example>
+		[PacketHandler(Op.BankPostLicenseInquiryDeposit)]
+		public void BankPostLicenseInquiryDeposit(ChannelClient client, Packet packet)
+		{
+			var itemEntityId = packet.GetLong();
+
+			var creature = client.GetCreatureSafe(packet.Id);
+			var item = creature.Inventory.GetItemSafe(itemEntityId);
+
+			// Check license
+			if (!item.HasTag("/personalshoplicense/"))
+			{
+				Log.Warning("BankPostLicenseInquiryDeposit: User '{0}' tried to post-license-inquiry-deposit invalid item.", client.Account.Id);
+				Send.BankPostLicenseInquiryDepositR(creature, false);
+				return;
+			}
+
+			// Deposit item
+			var success = client.Account.Bank.DepositItem(creature, itemEntityId, creature.Temp.CurrentBankId, creature.Name, 0, 0);
+
+			Send.BankPostLicenseInquiryDepositR(creature, success);
 		}
 
 		/// <summary>

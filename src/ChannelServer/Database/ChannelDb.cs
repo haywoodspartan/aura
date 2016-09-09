@@ -19,6 +19,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Globalization;
+using Aura.Channel.World;
 
 namespace Aura.Channel.Database
 {
@@ -283,6 +284,8 @@ namespace Aura.Channel.Database
 					character.ToxicWill = reader.GetFloat("toxicWill");
 					character.ToxicLuck = reader.GetFloat("toxicLuck");
 
+					character.PlayPoints = reader.GetInt32("playPoints");
+
 					title = reader.GetUInt16("title");
 					optionTitle = reader.GetUInt16("optionTitle");
 
@@ -327,6 +330,9 @@ namespace Aura.Channel.Database
 			// Change weapon set after inventory has been loaded and
 			// everything is set.
 			character.Inventory.ChangeWeaponSet(weaponSet);
+
+			// Guild
+			ChannelServer.Instance.GuildManager.SetGuildForCharacter(character);
 
 			return character;
 		}
@@ -1055,6 +1061,7 @@ namespace Aura.Channel.Database
 				cmd.Set("toxicDex", creature.ToxicDex);
 				cmd.Set("toxicWill", creature.ToxicWill);
 				cmd.Set("toxicLuck", creature.ToxicLuck);
+				cmd.Set("playPoints", creature.PlayPoints);
 				cmd.Set("title", creature.Titles.SelectedTitle);
 				cmd.Set("optionTitle", creature.Titles.SelectedOptionTitle);
 				cmd.Set("state", (uint)creature.State);
@@ -1446,10 +1453,18 @@ namespace Aura.Channel.Database
 						// Objects are serialized to a Base64 string,
 						// because we're storing as string for easier
 						// inter-language access.
-						using (var ms = new MemoryStream())
+						try
 						{
-							bf.Serialize(ms, var.Value);
-							val = Convert.ToBase64String(ms.ToArray());
+							using (var ms = new MemoryStream())
+							{
+								bf.Serialize(ms, var.Value);
+								val = Convert.ToBase64String(ms.ToArray());
+							}
+						}
+						catch (Exception ex)
+						{
+							Log.Warning("SaveVars: Failed to save '{0}' for account '{1}', error: {2}", var.Key, accountId, ex.Message);
+							continue;
 						}
 					}
 					else if (type == "dt")

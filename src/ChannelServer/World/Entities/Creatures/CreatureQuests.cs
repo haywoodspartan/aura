@@ -105,6 +105,12 @@ namespace Aura.Channel.World.Entities.Creatures
 
 				_creature.Inventory.Add(item, true);
 			}
+
+			// Receive event
+			// XXX: Could be used for the deliver objectives above as well?
+			//   It would make more sense to always give delvier items
+			//   automatically though, not only on start.
+			quest.Data.OnReceive(_creature);
 		}
 
 		/// <summary>
@@ -554,6 +560,23 @@ namespace Aura.Channel.World.Entities.Creatures
 
 			record.Done += done;
 			record.Success += success;
+			record.LastChange = DateTime.Now;
+
+			this.PtjTrackRecordChanged.Raise(_creature, record);
+		}
+
+		/// <summary>
+		/// Sets track record, changing success, done, and last change.
+		/// </summary>
+		/// <param name="type"></param>
+		/// <param name="done"></param>
+		/// <param name="success"></param>
+		public void SetPtjTrackRecord(PtjType type, int done, int success)
+		{
+			var record = this.GetPtjTrackRecord(type);
+
+			record.Done = done;
+			record.Success = success;
 			record.LastChange = DateTime.Now;
 
 			this.PtjTrackRecordChanged.Raise(_creature, record);

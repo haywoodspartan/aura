@@ -1601,6 +1601,15 @@ namespace Aura.Channel.Scripting.Scripts
 					skillHandler.Prepare(this.Creature, skill, null);
 					this.Creature.Skills.ActiveSkill = skill;
 					skillHandler.Complete(this.Creature, skill, null);
+					this.Creature.Skills.ActiveSkill = null;
+				}
+				else if (skillId == SkillId.DarkLord)
+				{
+					var skillHandler = ChannelServer.Instance.SkillManager.GetHandler<DarkLordSkill>(skillId);
+					skillHandler.Prepare(this.Creature, skill, null);
+					this.Creature.Skills.ActiveSkill = skill;
+					skillHandler.Complete(this.Creature, skill, null);
+					this.Creature.Skills.ActiveSkill = null;
 				}
 				// Try to handle implicitly
 				else
@@ -1982,6 +1991,46 @@ namespace Aura.Channel.Scripting.Scripts
 				this.Creature.Inventory.Remove(item);
 			if (newItem != null)
 				this.Creature.Inventory.Add(newItem, Pocket.Armor);
+
+			yield break;
+		}
+
+		/// <summary>
+		/// Sets the skin color of the creature controlled by the AI.
+		/// </summary>
+		/// <param name="skinColor"></param>
+		/// <returns></returns>
+		protected IEnumerable SetSkinColor(int skinColor)
+		{
+			this.Creature.SkinColor = (byte)skinColor;
+
+			Send.CreatureFaceUpdate(this.Creature);
+			Send.StatUpdate(this.Creature, StatUpdateType.Public, Stat.SkinColor);
+
+			yield break;
+		}
+
+		/// <summary>
+		/// Gives skill to the creature controlled by the AI.
+		/// </summary>
+		/// <param name="skillIds"></param>
+		/// <returns></returns>
+		protected IEnumerable AddSkill(SkillId skillId, SkillRank rank)
+		{
+			this.Creature.Skills.Give(skillId, rank);
+
+			yield break;
+		}
+
+		/// <summary>
+		/// Removes skills from the creature controlled by the AI.
+		/// </summary>
+		/// <param name="skillIds"></param>
+		/// <returns></returns>
+		protected IEnumerable RemoveSkills(params SkillId[] skillIds)
+		{
+			foreach (var skillId in skillIds)
+				this.Creature.Skills.RemoveSilent(skillId);
 
 			yield break;
 		}

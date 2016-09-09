@@ -31,7 +31,7 @@ namespace Aura.Channel.World.Dungeons
 	{
 		private int _bossesRemaining;
 
-		private List<TreasureChest> _treasureChests;
+		private List<Prop> _treasureChests;
 		private PlacementProvider _treasurePlacementProvider;
 
 		private Door _bossDoor;
@@ -151,7 +151,7 @@ namespace Aura.Channel.World.Dungeons
 			if (this.Data == null)
 				throw new ArgumentException("Dungeon '" + dungeonName + "' doesn't exist.");
 
-			_treasureChests = new List<TreasureChest>();
+			_treasureChests = new List<Prop>();
 			_treasurePlacementProvider = new PlacementProvider(Placement.Treasure8, 750);
 			this.Regions = new List<DungeonRegion>();
 			_clearedSections = new HashSet<int>();
@@ -621,7 +621,7 @@ namespace Aura.Channel.World.Dungeons
 		/// Adds chest to list of chests to spawn.
 		/// </summary>
 		/// <param name="chest"></param>
-		public void AddChest(TreasureChest chest)
+		public void AddChest(Prop chest)
 		{
 			_treasureChests.Add(chest);
 		}
@@ -743,11 +743,20 @@ namespace Aura.Channel.World.Dungeons
 		/// <summary>
 		/// Plays cutscene for all party members.
 		/// </summary>
-		/// <param name="dungeon"></param>
 		/// <param name="cutsceneName"></param>
 		public void PlayCutscene(string cutsceneName)
 		{
 			Cutscene.Play(cutsceneName, this.PartyLeader);
+		}
+
+		/// <summary>
+		/// Plays cutscene for all party members.
+		/// </summary>
+		/// <param name="cutsceneName"></param>
+		/// <param name="onFinish"></param>
+		public void PlayCutscene(string cutsceneName, Action<Cutscene> onFinish)
+		{
+			Cutscene.Play(cutsceneName, this.PartyLeader, onFinish);
 		}
 
 		/// <summary>
@@ -921,6 +930,18 @@ namespace Aura.Channel.World.Dungeons
 			}
 
 			return null;
+		}
+
+		/// <summary>
+		/// Removes all players from dungeon.
+		/// </summary>
+		public void RemoveAllPlayers()
+		{
+			var players = this.Regions.SelectMany(a => a.GetCreatures(b => b.IsPlayer));
+			foreach (var player in players)
+			{
+				player.Warp(this.Data.Exit);
+			}
 		}
 	}
 }

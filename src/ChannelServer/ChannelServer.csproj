@@ -187,6 +187,7 @@
     <Compile Include="Skills\Combat\Smash.cs" />
     <Compile Include="Skills\Combat\Stomp.cs" />
     <Compile Include="Skills\Combat\SuperWindmill.cs" />
+    <Compile Include="Skills\Combat\DarkLord.cs" />
     <Compile Include="Skills\Combat\Windmill.cs" />
     <Compile Include="Skills\Guns\BulletSlide.cs" />
     <Compile Include="Skills\Guns\BulletStorm.cs" />
